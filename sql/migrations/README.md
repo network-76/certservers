@@ -1,10 +1,12 @@
-# Database migrations
+# 数据库结构迁移说明
 
-Store ordered, forward-only SQL migrations here, for example `0001_initial_schema.sql`.
+本目录用于保存按版本排序的 SQL 数据库结构迁移脚本，例如 `0001_initial_schema.sql`。
 
-Guidelines:
-- Use InnoDB and utf8mb4 where appropriate.
-- Store private key references or encrypted key blobs only; never plaintext private keys.
-- Keep certificate DER/PEM payload storage policy explicit.
-- Include migration version tracking and test upgrade paths on a disposable MariaDB instance.
-- Record issuance, revocation, and privileged administrative actions in an append-only audit design where practical.
+## 编写规范
+- 优先使用 InnoDB 存储引擎，并根据实际需要采用 utf8mb4 字符集。
+- 采用有序、可追踪的迁移版本号；已发布迁移原则上只追加新迁移，不直接修改历史迁移。
+- 只允许保存私钥引用或经过可靠加密的密钥数据，绝不保存明文私钥。
+- 明确证书 DER/PEM 内容是存入数据库还是独立文件存储，并保持元数据与文件的一致性。
+- 维护数据库迁移版本记录。
+- 在临时 MariaDB 实例中测试全新安装和版本升级路径。
+- 尽可能采用追加式审计设计，记录签发、吊销和高权限管理操作。

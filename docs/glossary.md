@@ -45,3 +45,21 @@
 2. 后续可直接使用缩写，但不得改变术语含义。
 3. 区分“协议具备某项能力”和“目标软件已实现该能力”。
 4. 产品名称、标准编号、算法标识、代码符号和配置项保留原始拼写。
+
+
+## LDAP 与领域模板相关术语
+
+| 术语 / 缩写 | 中文名称 | 英文全称 | 说明 |
+|---|---|---|---|
+| LDAP | 轻量级目录访问协议 | Lightweight Directory Access Protocol | 用于访问目录服务中的用户、组织、组和其他身份信息的标准协议。 |
+| LDAPS | 基于 TLS 的 LDAP | LDAP over TLS | 在 TLS 加密连接上运行 LDAP，保护身份验证凭据和目录数据。 |
+| StartTLS | LDAP 启动 TLS 扩展 | StartTLS Extension | 将已有 LDAP 连接升级为 TLS 加密连接。 |
+| Bind | LDAP 绑定认证 | LDAP Bind Operation | LDAP 客户端向目录服务器证明身份的操作；用户密码验证通常通过用户 DN 的 Bind 完成。 |
+| DN | 可分辨名称 | Distinguished Name | 在目录树中唯一定位一个目录条目的名称。 |
+| RDN | 相对可分辨名称 | Relative Distinguished Name | DN 中相对于上级目录节点的名称组成部分。 |
+| Schema | 目录模式 | LDAP Schema | 定义目录中对象类别、属性类型及其约束的规则集合。 |
+| entryUUID | 目录条目唯一标识 | Entry UUID | 某些 LDAP 服务提供的稳定条目标识，可用于关联用户记录。 |
+| objectGUID | 对象全局唯一标识 | Object Globally Unique Identifier | Active Directory 常用的对象唯一标识。 |
+| 审批流 | 申请审核流程 | Approval Workflow | 根据规则将证书申请自动签发、转人工审核或拒绝的业务流程。 |
+| 领域模板 | 证书业务模板 | Certificate Domain Template | 针对 Wi-Fi、员工、设备或服务器等业务场景定义字段映射、证书用途和审批规则的模板。 |
+| 模板版本 | 模板规则版本 | Template Version | 发布后固定的模板版本；申请记录绑定版本，确保后续审批规则可追溯。 |

@@ -1,0 +1,24 @@
+# Example configuration. Replace secrets and paths for deployment.
+[server]
+name = "certservers"
+environment = "production"
+socket_path = "/run/certservers/api.sock"
+socket_mode = "0660"
+run_user = "certservers"
+run_group = "certservers"
+
+[database]
+host = "127.0.0.1"
+port = 3306
+name = "certservers"
+user = "certservers"
+password_file = "/etc/certservers/db-password"
+
+[storage]
+certificate_dir = "/var/lib/certservers/certificates"
+crl_dir = "/var/lib/certservers/crl"
+private_key_dir = "/var/lib/certservers/private"
+
+[crypto]
+provider = "tongsuo"
+# Never place plaintext private key material in this file.

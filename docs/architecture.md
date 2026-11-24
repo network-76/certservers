@@ -1,20 +1,42 @@
-# Architecture
+# 系统架构设计
 
-## Components
-- **Nginx**: terminates HTTPS, serves the administrative frontend, and proxies `/api/v1/` to the application socket.
-- **C application**: initially one modular process; owns API routing, authorization, CA/certificate workflows, database access, cryptographic operations, and audit.
-- **MariaDB**: stores metadata, certificate lifecycle state, requests, and audit records.
-- **Certificate storage**: PEM/DER certificate objects stored separately from relational metadata.
-- **Crypto engine**: Tongsuo is the initial candidate. Keep crypto operations behind an internal adapter to avoid spreading provider-specific calls.
+## 1. 总体结构
 
-## Request path
-Browser → HTTPS/Nginx → `/run/certservers/api.sock` → C application → MariaDB / certificate storage / crypto engine.
+系统采用前后端分离的 Web 架构。Nginx 负责外部 HTTPS 接入，C 语言业务服务负责证书管理业务，MariaDB 保存结构化业务数据，密码引擎负责密钥和签名等密码学操作。
 
-## Process model
-Start with one C service process and clear modules. Split background jobs or workers only when operational load requires it.
+主要组件：
+- **Nginx：** 终止 HTTPS 连接、提供管理页面静态文件，并将 `/api/v1/` 请求反向代理到 C 服务的 Unix 域套接字。
+- **C 业务服务：** 初期采用单进程、模块化结构，负责 API 路由、身份认证、权限控制、CA 与证书业务、数据库访问、密码操作和审计。
+- **MariaDB：** 保存 CA 元数据、证书元数据、证书状态、申请记录、吊销记录及审计日志。
+- **证书文件存储：** PEM（隐私增强邮件格式）或 DER（二进制编码规则）格式的证书对象与数据库元数据分离存放。
+- **密码引擎：** 初步采用铜锁（Tongsuo），通过内部适配层封装引擎接口。
 
-## RADIUS integration
-Keep RADIUS independent of CA internals. Publish CRLs and, if later implemented, OCSP; alternatively expose a narrowly scoped certificate-status API.
+## 2. 请求处理路径
 
-## Trust domains
-The Nginx web-server TLS certificate is separate from the end-entity authentication CA hierarchy.
+浏览器 → HTTPS → Nginx → `/run/certservers/api.sock` → C 业务服务 → MariaDB、证书文件存储或密码引擎。
+
+C 业务服务初期只监听 Unix 域套接字，不开放公网 TCP 端口。套接字建议使用专用用户和用户组，权限通常设置为 `0660`；其父目录不得允许无关用户写入。
+
+## 3. 进程模型
+
+初期使用一个 C 语言主服务进程，内部按 API、CA、证书、密码、数据库、审计和公共组件划分模块。只有在任务量、可靠性或资源隔离需求明确后，才考虑拆分定时任务或后台工作进程。
+
+## 4. RADIUS 集成边界
+
+RADIUS（远程认证拨入用户服务）负责网络接入认证；CA 负责证书签发、更新和吊销。两者不直接共享数据库。
+
+推荐由 CA 生成 CRL（证书吊销列表）并通过 HTTPS 发布，RADIUS 定期下载、验证签名和有效期后更新本地缓存。若业务要求更及时的单证书状态查询，再评估 OCSP（在线证书状态协议）。
+
+CRL 地址可通过证书中的 CDP（CRL 分发点）扩展发布，也可以在 RADIUS 服务器侧显式配置。实际采用哪种方式，取决于 RADIUS 软件、TLS 库和终端环境的支持情况。
+
+## 5. 信任域隔离
+
+Nginx 管理网站使用的 HTTPS 服务器证书，与签发终端身份认证证书的 CA 层级分开管理。Web 管理入口的服务器身份、管理员登录身份和终端 EAP-TLS 身份属于不同信任用途，不应混用同一证书或密钥。
+
+## 6. 核心术语
+
+- **CA：** 证书颁发机构，负责签发和管理数字证书。
+- **X.509 v3：** 常用的公钥数字证书标准版本，支持扩展字段。
+- **CSR：** 证书签名请求，申请者提交公钥、主体信息及相关签名，供 CA 验证后签发证书。
+- **CRL：** 证书吊销列表，记录在有效期结束前已被吊销的证书。
+- **OCSP：** 在线证书状态协议，用于查询单张证书的状态。

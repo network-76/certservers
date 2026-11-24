@@ -1,13 +1,38 @@
-# Security Design
+# 安全设计
 
-- Keep the root CA private key offline.
-- Protect intermediate CA keys with encryption at rest and preferably HSM/SDF/SKF-backed operations.
-- Never store plaintext private keys in MariaDB.
-- Restrict filesystem permissions for keys, certificate storage, configuration, and Unix socket.
-- Use a dedicated service account and group. Socket mode should normally be 0660; its parent directory must not be world-writable.
-- Do not trust a request merely because it arrived over a Unix socket. Enforce application authentication and authorization.
-- Apply role-based access control, CSRF protection where applicable, rate limits, strict input validation, and security audit logging.
-- Protect administrative sessions and secrets; avoid logging private key material, passwords, tokens, or full sensitive payloads.
-- Back up database metadata and certificate objects securely; document key backup and recovery separately.
-- Separate the web HTTPS certificate lifecycle from the client-authentication CA lifecycle.
-- Define and test revocation, CRL publication, clock synchronization, and CA compromise procedures.
+## 1. CA 私钥保护
+- 根 CA（证书颁发机构）私钥应离线保存，在线业务服务不应直接持有根私钥。
+- 中间 CA 私钥必须加密保存；条件允许时优先通过 HSM（硬件安全模块）、SDF 或 SKF 等密码设备完成密钥操作。
+- 严禁将明文私钥写入 MariaDB、日志、临时文件或普通备份。
+- 私钥解密口令、设备 PIN 和其他密钥材料不得硬编码在源代码或示例配置中。
+
+## 2. 文件与进程权限
+- 对配置文件、证书文件、私钥文件和运行目录设置最小必要权限。
+- C 服务使用独立系统账户和用户组运行。
+- Unix 域套接字建议权限为 `0660`，父目录不得对无关用户开放写权限。
+- 不得因为请求来自本机套接字就默认信任调用者；仍须执行应用层身份认证和授权。
+
+## 3. Web 与 API 安全
+- 管理入口使用 HTTPS，并配置安全的 TLS 参数。
+- 实施角色访问控制、会话保护、CSRF（跨站请求伪造）防护、速率限制和严格输入校验。
+- API 应验证调用者身份和操作权限，对敏感操作要求二次确认或更强认证。
+- 日志不得记录私钥、密码、令牌或完整的敏感请求内容。
+- 管理页面 HTTPS 证书与终端身份认证 CA 分开管理。
+
+## 4. RADIUS 与 CA 通信安全
+- CRL 通过 HTTPS 发布；RADIUS 下载时必须验证 CRL 的数字签名、颁发者、有效期和编号，不能仅凭 HTTPS 下载成功就认定内容可信。
+- RADIUS 应缓存最近一次验证通过的 CRL，并明确规定 CRL 过期、下载失败和缓存缺失时的处理策略。
+- OCSP 或状态 API 如投入使用，应采用 HTTPS；跨系统接口优先使用 mTLS（双向 TLS 认证）或强身份凭据，并实施最小权限、访问审计和速率限制。
+- 不向 RADIUS 暴露 MariaDB 账号，不允许 RADIUS 直接读写 CA 数据库。
+- 证书状态查询故障时，应依据明确的 fail-open（故障开放）或 fail-closed（故障关闭）策略处理。
+
+## 5. 备份与恢复
+- 数据库元数据、证书文件和 CA 私钥分别制定备份策略。
+- CA 私钥备份必须加密并实施严格的双人控制或离线保管流程。
+- 定期演练恢复流程，验证证书链、数据库关联关系和 CRL 发布能力。
+
+## 6. 吊销与应急响应
+- 定义证书吊销审批、原因记录和操作审计。
+- 定义 CRL 生成、发布、更新周期和过期告警。
+- 建立 CA 私钥泄露、CA 证书失陷、错误签发和 CRL 发布异常的应急流程。
+- 所有时间相关校验依赖可靠的系统时钟，并监控时间同步状态。

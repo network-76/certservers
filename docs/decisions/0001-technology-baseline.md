@@ -1,16 +1,22 @@
-# ADR 0001: Technology Baseline
+# 技术选型决策记录 0001：初始技术基线
 
-- **Status:** Accepted as initial implementation baseline; crypto engine remains subject to validation.
-- **Backend:** C, modular single-process service initially.
-- **Database:** MariaDB.
-- **Web:** Nginx terminates HTTPS and proxies API calls over Unix domain socket.
-- **Socket:** `/run/certservers/api.sock`, dedicated service user/group, typically mode 0660.
-- **Crypto:** Tongsuo as the first implementation candidate; evaluate GmSSL separately, but do not build dual-engine support prematurely.
-- **Build/runtime:** CMake and systemd.
-- **Frontend:** HTML, CSS, JavaScript.
+- **状态：** 作为初始开发基线采纳；密码引擎仍需实际验证。
+- **后端：** C 语言，初期采用模块化单进程服务。
+- **数据库：** MariaDB。
+- **Web 接入：** Nginx 负责 HTTPS 终止，并通过 Unix 域套接字转发 API 请求。
+- **套接字：** `/run/certservers/api.sock`，使用专用服务用户和用户组，权限通常为 `0660`。
+- **密码引擎：** 首先评估并接入铜锁（Tongsuo）；GmSSL 作为备选单独评估，初期不提前建设双引擎兼容层。
+- **构建与运行：** CMake、systemd。
+- **前端：** HTML、CSS、JavaScript。
+- **RADIUS 集成：** 优先采用 CRL（证书吊销列表）HTTPS 分发；OCSP（在线证书状态协议）作为后续增强选项。
 
-## Rationale
-A small deployment footprint and explicit trust boundaries suit private deployments. A modular C service keeps the initial operational model simple while allowing later process separation.
+## 选型原因
 
-## Consequences
-SM2 X.509 support and EAP-TLS interoperability are separate acceptance criteria. The latter requires end-to-end testing against the intended endpoint and RADIUS stacks.
+该组合适合私有化部署，依赖关系相对清晰。模块化 C 服务能够保持初期部署简单，同时为未来拆分后台任务预留空间。Nginx 与 Unix 域套接字可减少业务服务直接暴露网络端口的风险。
+
+## 关键约束
+
+1. SM2 X.509 证书签发能力与国密 TLS / EAP-TLS 互通性是两项不同的验收标准。
+2. 互通性必须在目标终端、RADIUS 软件和 TLS 密码库组合中端到端测试。
+3. CA 与 RADIUS 不直接共享数据库。CRL 是第一阶段优先实现的状态分发方式。
+4. 根 CA 私钥离线保存；MariaDB 不保存明文私钥。

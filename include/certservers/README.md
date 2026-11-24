@@ -1,3 +1,10 @@
-# Public/internal headers
+# 公共与内部头文件目录
 
-Place project headers here, grouped by module. Keep public interfaces narrow and document ownership, error handling, and buffer-length contracts. Avoid exposing crypto-provider-specific types outside the crypto adapter.
+本目录用于存放项目的 C 语言头文件，并按功能模块组织。
+
+## 编写要求
+- 公共接口应保持精简，避免暴露不必要的内部实现。
+- 明确接口的内存所有权、资源释放责任和错误返回约定。
+- 对缓冲区长度、字符串终止符和输入输出参数作出清晰约定。
+- 不要在业务模块的公共头文件中暴露铜锁或其他密码引擎的专有类型；相关类型应封装在密码适配模块内部。
+- 头文件应使用 include guard 或等效机制防止重复包含。

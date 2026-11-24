@@ -1,3 +1,12 @@
-# Database module
+# 数据库访问模块
 
-Implement MariaDB connection management, prepared statements, transaction boundaries, schema migrations, and repository functions. Do not concatenate untrusted values into SQL.
+本模块负责与 MariaDB 数据库交互。
+
+## 主要职责
+- 数据库连接和连接生命周期管理。
+- 预处理语句及参数绑定。
+- 事务边界和错误处理。
+- 数据库结构迁移版本管理。
+- CA、证书、申请、吊销和审计数据的仓储访问接口。
+
+禁止将不可信输入直接拼接到 SQL 语句中。所有数据库操作都应明确事务范围，并妥善处理连接失败和事务回滚。

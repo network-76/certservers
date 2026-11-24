@@ -1,3 +1,13 @@
-# Unit tests
+# 单元测试说明
 
-Add unit tests for parsing, validation, profile policy, crypto adapter behavior, database helpers, and authorization decisions. Include malformed and boundary inputs.
+本目录用于存放单个模块或函数级别的单元测试。
+
+## 建议覆盖范围
+- 配置解析、HTTP 请求解析和输入校验。
+- 证书模板及主体字段策略。
+- 密码适配层的密钥、签名和验签行为。
+- 数据库辅助函数和错误处理。
+- 用户身份认证、角色和权限判断。
+- CRL 编号、有效期和状态处理逻辑。
+
+应包含异常输入、边界条件、资源耗尽和错误返回路径的测试。

@@ -22,3 +22,31 @@ private_key_dir = "/var/lib/certservers/private"
 [crypto]
 provider = "tongsuo"
 # Never place plaintext private key material in this file.
+
+
+[ldap]
+# LDAP 服务地址示例。生产环境优先使用 ldaps://，或配置 ldap:// 并启用 StartTLS。
+url = "ldaps://ldap.example.internal:636"
+use_starttls = false
+verify_server_certificate = true
+ca_bundle_file = "/etc/certservers/ldap-ca.pem"
+# 服务绑定账号仅用于搜索用户和读取授权范围内的目录属性。
+bind_dn = "cn=certservers-reader,ou=service-accounts,dc=example,dc=internal"
+bind_password_file = "/etc/certservers/ldap-bind-password"
+user_base_dn = "ou=users,dc=example,dc=internal"
+user_filter = "(&(objectClass=person)(uid={login}))"
+login_attribute = "uid"
+# 优先使用目录提供的稳定唯一标识，例如 entryUUID 或 objectGUID。
+unique_id_attribute = "entryUUID"
+display_name_attribute = "cn"
+email_attribute = "mail"
+department_attribute = "ou"
+group_membership_attribute = "memberOf"
+connect_timeout_seconds = 5
+search_timeout_seconds = 5
+
+[certificate_application]
+# 默认策略：LDAP 身份验证成功后，仍需按领域模板和审批策略判断是否签发。
+default_decision = "manual_review"
+allow_automatic_issuance = false
+require_template_version = true

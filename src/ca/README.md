@@ -1,3 +1,11 @@
-# CA module
+# CA 证书颁发机构模块
 
-Own CA hierarchy metadata and lifecycle workflows. Root CA private keys should remain offline. Intermediate CA key operations must use protected storage or hardware-backed interfaces where available.
+本模块负责 CA 层级信息和 CA 生命周期管理。
+
+## 主要职责
+- 管理根 CA、中间 CA 的元数据和证书信息。
+- 管理 CA 证书有效期、状态和关联关系。
+- 为证书签发、吊销列表生成等操作提供受控的签名能力。
+- 记录 CA 级别的关键操作和审计信息。
+
+根 CA 私钥原则上离线保存。中间 CA 私钥必须受到加密保护；具备条件时应通过硬件密码设备完成密钥操作。

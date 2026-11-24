@@ -1,3 +1,11 @@
-# Common module
+# 公共基础模块
 
-Shared error codes, safe memory helpers, configuration types, logging interfaces, and utility functions. Avoid creating a catch-all dependency layer.
+本模块提供多个业务模块共同使用的基础能力。
+
+## 主要内容
+- 统一错误码和错误信息。
+- 安全的内存分配、释放和字符串处理辅助函数。
+- 配置数据结构及读取接口。
+- 日志接口和通用工具函数。
+
+避免将所有不易归类的代码都放入本模块，防止形成职责不清晰、依赖过多的公共层。

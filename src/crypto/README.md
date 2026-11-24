@@ -1,3 +1,13 @@
-# Crypto adapter
+# 密码引擎适配模块
 
-Encapsulate Tongsuo/provider-specific APIs behind stable project interfaces. Evaluate SM2 key handling, SM2-with-SM3 signatures, CSR verification, certificate signing, and interoperability. GmSSL is an alternative for evaluation, not a second implementation target at the outset.
+本模块用于封装铜锁（Tongsuo）等密码引擎的调用，为上层业务提供稳定、统一的密码学接口。
+
+## 初期验证范围
+- SM2 密钥生成和密钥读取。
+- SM2-with-SM3 数字签名与验签。
+- CSR（证书签名请求）签名验证。
+- X.509 v3 证书签名和验证。
+- PEM、DER 格式转换与解析。
+- 目标环境中的算法和证书互通性。
+
+业务模块不应直接散布密码引擎专有 API。GmSSL 作为备选评估对象，初期不同时建设两套完整实现。

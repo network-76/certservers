@@ -1,3 +1,12 @@
-# API module
+# API 接口模块
 
-Implement versioned HTTP API routing, request parsing, response serialization, authentication, authorization, and validation here. Keep handlers thin and delegate business logic to domain modules.
+本模块负责版本化 HTTP API 的路由和请求处理。
+
+## 主要职责
+- 解析 HTTP 请求和参数。
+- 对请求数据进行格式、长度和业务规则校验。
+- 将业务结果序列化为统一格式的响应。
+- 执行调用者身份认证和权限检查。
+- 将具体证书、CA 和数据库操作委托给对应业务模块。
+
+接口处理函数应尽量保持精简，不应在 API 层直接堆积复杂业务逻辑或密码学实现。

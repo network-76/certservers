@@ -1,3 +1,13 @@
-# Certificate module
+# 数字证书管理模块
 
-Implement CSR intake, profile validation, X.509 v3 issuance, certificate inventory, revocation, and export. Enforce explicit subject/SAN/key-usage/extended-key-usage policies.
+本模块负责证书申请、校验、签发、查询、吊销和导出。
+
+## 主要职责
+- 接收 PKCS#10 CSR（证书签名请求），解析申请者公钥和主体信息。
+- 验证 CSR 自签名，拒绝签名无效或不符合策略的申请。
+- 按证书模板校验主体名称、SAN（主题备用名称）、密钥用途和 EKU（扩展密钥用途）。
+- 生成符合 X.509 v3 标准的证书。
+- 管理证书序列号、签发者、有效期和状态。
+- 执行证书吊销并向 CA 模块提供 CRL 生成所需信息。
+
+所有证书字段必须经过策略校验，不能直接信任客户端提交的内容。

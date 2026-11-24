@@ -18,8 +18,10 @@
 | PKI | 公钥基础设施 | Public Key Infrastructure | 管理密钥、证书、信任关系、签发和吊销的一整套体系。 |
 | SM2 | SM2 椭圆曲线公钥密码算法 | SM2 Public Key Cryptographic Algorithm | 中国国家密码标准中的公钥密码算法。 |
 | SM3 | SM3 密码杂凑算法 | SM3 Cryptographic Hash Algorithm | 中国国家密码标准中的密码杂凑算法。 |
-| PEM | 隐私增强邮件格式 | Privacy-Enhanced Mail | 常见的文本封装格式，通常以 Base64 表示证书或密钥并带有头尾标记。 |
-| DER | 可分辨编码规则 | Distinguished Encoding Rules | ASN.1 数据的一种二进制编码格式，常用于证书文件。 |
+| PEM | 隐私增强邮件格式 | Privacy-Enhanced Mail | 以文本形式封装证书或密钥，通常使用 Base64 编码并带有 BEGIN/END 标记；可将证书、证书链和私钥分别保存。 |
+| DER | 可分辨编码规则 | Distinguished Encoding Rules | ASN.1 数据的一种二进制编码格式，常用于单张证书或密钥对象。 |
+| PKCS#12 | 个人信息交换语法标准 | Personal Information Exchange Syntax Standard | 可将证书、对应私钥及证书链封装到一个受密码保护的归档文件中，常见扩展名为 .p12 或 .pfx。 |
+| P12 / PFX | PKCS#12 文件 | PKCS#12 file | PKCS#12 归档文件的常见扩展名；P12 与 PFX 通常指同类文件格式。 |
 | HSM | 硬件安全模块 | Hardware Security Module | 用于保护密钥并在受控硬件环境中执行密码运算的设备。 |
 | RADIUS | 远程认证拨入用户服务 | Remote Authentication Dial-In User Service | 网络接入领域常用的认证、授权和计费协议。 |
 | 802.1X | 基于端口的网络访问控制 | Port-Based Network Access Control | 在有线或无线网络接入时执行身份认证和端口授权的机制。 |

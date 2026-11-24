@@ -1,22 +1,46 @@
-# Requirements
+# 项目需求说明
 
-## Purpose
-Provide a privately deployed certificate authority and certificate management service for RADIUS, Wi-Fi 802.1X, and EAP-TLS terminal authentication.
+## 1. 项目目的
 
-## Functional requirements
-- Support X.509 v3 certificates with SM2 public keys and SM2-with-SM3 signatures.
-- Accept and validate PKCS#10 CSRs.
-- Issue, inspect, revoke, and export certificates.
-- Publish CRLs; consider OCSP in a later phase.
-- Maintain CA, certificate, request, revocation, and audit metadata.
-- Provide an administrative web interface and versioned API.
+建设一套可私有化部署的数字证书颁发与管理服务，用于 RADIUS、Wi-Fi 802.1X 和 EAP-TLS 网络终端身份认证场景，重点支持 SM2 国密算法体系。
 
-## Non-functional requirements
-- C backend, MariaDB persistence, Nginx HTTPS entry point.
-- Nginx proxies API traffic to a Unix domain socket.
-- C service does not expose a public TCP listener.
-- Build with CMake and run under systemd.
-- Apply authentication, authorization, audit, input validation, and secure key handling.
+## 2. 功能需求
 
-## Interoperability requirement
-SM2 X.509 issuance does not by itself establish national-cryptography TLS or EAP-TLS compatibility. Validate the complete path: endpoint supplicant, RADIUS TLS backend, TLS provider, trust chain, algorithms/cipher suites, and revocation behavior.
+### 2.1 CA 管理
+- 支持 CA（证书颁发机构）基础信息管理。
+- 规划根 CA 与中间 CA 的层级结构。
+- 支持 CA 证书导入、查看、有效期管理和状态管理。
+- 根 CA 私钥应支持离线保管，不要求在线业务进程持有根私钥。
+
+### 2.2 证书申请与签发
+- 支持 X.509 v3 数字证书。
+- 支持 SM2 公钥及 SM2-with-SM3 签名算法。
+- 接收并验证 PKCS#10 CSR（证书签名请求）。CSR 应包含申请者公钥、主体信息，并由申请者对请求内容签名；CA 必须验证签名。
+- 支持证书模板、主体字段、主题备用名称（SAN）、密钥用途和扩展密钥用途策略。
+- 支持证书签发、查询、下载和导出。
+
+### 2.3 证书生命周期
+- 支持证书吊销及吊销原因记录。
+- 支持 CRL（证书吊销列表）的生成、签名、发布和更新。
+- OCSP（在线证书状态协议）作为后续阶段评估功能，不作为第一阶段交付前提。
+- 记录证书序列号、签发者、有效期、状态和关联申请信息。
+
+### 2.4 管理与审计
+- 提供 Web 管理界面和版本化 API。
+- 支持管理员身份认证、角色权限控制和会话管理。
+- 对签发、吊销、CA 操作、配置变更和登录等安全事件进行审计。
+
+## 3. 非功能需求
+- 后端采用 C 语言，数据库采用 MariaDB。
+- Nginx 提供 HTTPS 接入，并通过 Unix 域套接字访问 C 业务服务。
+- C 业务服务不开放公网 TCP 监听。
+- 使用 CMake 构建，使用 systemd 管理服务。
+- 实施输入校验、权限检查、审计、密钥保护、备份与恢复机制。
+
+## 4. 互通性验收要求
+
+签发 SM2 X.509 证书不等于具备国密 TLS 或 EAP-TLS 兼容能力。必须在目标环境中验证完整认证链路，包括终端操作系统及 supplicant（802.1X 认证客户端）、RADIUS 服务端及其 EAP-TLS 实现、TLS 库或密码提供程序、证书链、用途、密码套件协商，以及吊销检查行为。
+
+## 5. RADIUS 协作需求
+
+CA 应提供稳定的 CRL 发布地址，并记录 CRL 编号、生成时间和下次更新时间。RADIUS 应能够定期获取并校验 CRL。若未来实现 OCSP 或证书状态 API，必须定义身份认证、访问控制、超时、缓存和故障时的处理策略。

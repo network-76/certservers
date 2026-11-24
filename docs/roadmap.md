@@ -1,28 +1,33 @@
-# Roadmap
+# 开发路线图
 
-## Phase 0 — Foundation
-- [x] Establish technology baseline and repository structure.
-- [ ] Define API conventions, database migration policy, and threat model.
-- [ ] Establish CI build and static-analysis checks.
+## 阶段 0：基础工程
+- [x] 确定初步技术选型和仓库目录结构。
+- [x] 建立中文需求、架构、安全和术语文档。
+- [ ] 明确 API 约定、数据库迁移规范和威胁模型。
+- [ ] 建立持续集成构建、静态分析和基础测试。
 
-## Phase 1 — CA foundation
-- [ ] Integrate selected crypto engine (Tongsuo evaluation).
-- [ ] Implement CA key and certificate lifecycle.
-- [ ] Implement CSR parsing and strict profile validation.
-- [ ] Implement SM2 certificate issuance and verification tests.
+## 阶段 1：CA 基础能力
+- [ ] 完成密码引擎选型验证，优先评估铜锁（Tongsuo）。
+- [ ] 实现 CA 密钥及 CA 证书生命周期管理。
+- [ ] 实现 CSR（证书签名请求）解析、签名验证和严格的证书模板校验。
+- [ ] 实现 SM2 密钥生成、证书签发和签名验证测试。
+- [ ] 验证 X.509 v3 证书扩展字段和证书链。
 
-## Phase 2 — Certificate lifecycle
-- [ ] Certificate inventory and search.
-- [ ] Revocation and CRL generation/publication.
-- [ ] Audit trail and administrative RBAC.
+## 阶段 2：证书生命周期管理
+- [ ] 实现证书查询、筛选、下载和导出。
+- [ ] 实现证书吊销、原因记录和审计。
+- [ ] 实现 CRL（证书吊销列表）生成、签名、发布和自动更新。
+- [ ] 实现管理员角色权限控制。
 
-## Phase 3 — Web/API
-- [ ] Authentication and session management.
-- [ ] Versioned API and administrative UI.
-- [ ] Nginx and systemd deployment hardening.
+## 阶段 3：Web 与 API
+- [ ] 实现管理员认证和会话管理。
+- [ ] 实现版本化 API 和管理界面。
+- [ ] 完成 MariaDB 数据迁移和备份恢复机制。
+- [ ] 加固 Nginx、Unix 域套接字和 systemd 部署配置。
 
-## Phase 4 — Interoperability
-- [ ] Test target supplicants and operating systems.
-- [ ] Test RADIUS TLS backend and crypto provider combinations.
-- [ ] Verify chain building, cipher negotiation, and revocation checking.
-- [ ] Evaluate OCSP and HSM/SDF/SKF integration.
+## 阶段 4：RADIUS 互通性
+- [ ] 验证目标终端 supplicant（802.1X 认证客户端）与证书配置。
+- [ ] 验证 RADIUS 的 EAP-TLS 后端及 TLS 密码库组合。
+- [ ] 验证证书链、算法协商和吊销检查。
+- [ ] 实现并测试 CRL 自动获取、缓存、过期告警和异常处理。
+- [ ] 评估 OCSP（在线证书状态协议）及 HSM/SDF/SKF 密码设备集成。

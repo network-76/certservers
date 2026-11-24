@@ -1,0 +1,15 @@
+/build/
+/cmake-build-*/
+.cache/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+.env

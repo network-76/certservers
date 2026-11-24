@@ -1,3 +1,12 @@
-# HTTP and socket module
+# HTTP 服务与套接字模块
 
-Implement the HTTP server bound only to the Unix domain socket. Validate request sizes and methods, apply timeouts, and rely on application-level authentication and authorization in addition to filesystem socket permissions.
+本模块负责 C 业务服务的 HTTP 接入层，并仅绑定到 Unix 域套接字。
+
+## 主要职责
+- 创建并监听配置指定的 Unix 域套接字。
+- 解析 HTTP 请求行、请求头和请求体。
+- 限制请求体大小、请求方法和连接等待时间。
+- 将请求分派给 API 路由模块。
+- 在服务退出时安全关闭连接并清理套接字文件。
+
+必须同时依赖文件系统权限和应用层身份认证、授权。不能把“请求来自本机套接字”当作管理员身份凭据。

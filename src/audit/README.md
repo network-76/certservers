@@ -1,3 +1,13 @@
-# Audit module
+# 审计模块
 
-Record security-relevant events including login, role changes, CA operations, issuance, revocation, CRL publication, and configuration changes. Never log private keys or credentials.
+本模块负责记录与安全和管理相关的重要操作，形成可追溯的审计记录。
+
+## 需要记录的事件
+- 管理员登录、退出和认证失败。
+- 用户、角色和权限变更。
+- CA 创建、启用、停用和密钥相关操作。
+- 证书申请、签发、导出和吊销。
+- CRL（证书吊销列表）生成、更新和发布。
+- 系统配置及安全策略变更。
+
+审计日志不得记录私钥、密码、访问令牌或其他敏感凭据。应尽量防止普通管理员修改或删除已有审计记录。

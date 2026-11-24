@@ -1,3 +1,14 @@
-# Integration tests
+# 集成测试说明
 
-Add integration tests for MariaDB migrations, CSR-to-certificate issuance, revocation and CRL workflows, Nginx-to-socket proxying, and end-to-end RADIUS/EAP-TLS interoperability with target clients.
+本目录用于存放多个模块协同工作的集成测试。
+
+## 建议覆盖范围
+- MariaDB 数据库迁移、事务和数据一致性。
+- CSR（证书签名请求）到 X.509 证书签发的完整流程。
+- 证书吊销、CRL（证书吊销列表）生成和发布流程。
+- Nginx 到 Unix 域套接字的反向代理。
+- API 身份认证、权限控制和审计。
+- 目标终端、RADIUS 服务端及 EAP-TLS 的端到端互通性。
+- CRL 下载、签名验证、缓存、过期和故障处理。
+
+涉及密码学和互通性的测试，应记录密码引擎版本、RADIUS 版本、TLS 库版本和终端环境。

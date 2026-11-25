@@ -78,6 +78,7 @@ static int crl_roundtrip(EVP_PKEY *key)
     X509 *cert = NULL;
     X509_CRL *crl = NULL, *decoded = NULL;
     BIO *bio = NULL;
+    ASN1_TIME *last_update = NULL, *next_update = NULL;
     unsigned char *der = NULL, *cursor;
     int der_len, ok = 0;
 
@@ -93,6 +94,15 @@ static int crl_roundtrip(EVP_PKEY *key)
         X509_CRL_set1_nextUpdate(crl, X509_gmtime_adj(NULL, 86400)) != 1 ||
         X509_CRL_sign(crl, key, EVP_sm3()) <= 0) {
         fprintf(stderr, "CRL creation/signing failed\n");
+        goto cleanup;
+    }
+    last_update = X509_gmtime_adj(NULL, 0);
+    next_update = X509_gmtime_adj(NULL, 86400);
+    if (last_update == NULL || next_update == NULL ||
+        X509_CRL_set1_lastUpdate(crl, last_update) != 1 ||
+        X509_CRL_set1_nextUpdate(crl, next_update) != 1 ||
+        X509_CRL_sign(crl, key, EVP_sm3()) <= 0) {
+        fprintf(stderr, "CRL validity or signing failed\\n");
         goto cleanup;
     }
 
@@ -131,6 +141,8 @@ cleanup:
     BIO_free(bio);
     X509_CRL_free(decoded);
     X509_CRL_free(crl);
+    ASN1_TIME_free(last_update);
+    ASN1_TIME_free(next_update);
     X509_free(cert);
     return ok;
 }

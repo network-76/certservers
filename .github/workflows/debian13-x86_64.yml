@@ -39,3 +39,34 @@ jobs:
         run: |
           cmake -S . -B build-analyzer -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-fanalyzer"
           cmake --build build-analyzer --parallel
+
+  build-tongsuo-8-5:
+    name: 铜锁 8.5.0 源码构建与 TSAPI 验证
+    runs-on: ubuntu-latest
+    container:
+      image: debian:13
+    steps:
+      - name: 安装构建依赖
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates cmake build-essential perl curl
+          rm -rf /var/lib/apt/lists/*
+
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 下载并编译铜锁 8.5.0
+        run: |
+          curl --fail --location --retry 3 https://github.com/Tongsuo-Project/Tongsuo/archive/refs/tags/8.5.0.tar.gz -o /tmp/tongsuo-8.5.0.tar.gz
+          mkdir -p /tmp/tongsuo-src
+          tar -xzf /tmp/tongsuo-8.5.0.tar.gz --strip-components=1 -C /tmp/tongsuo-src
+          cd /tmp/tongsuo-src
+          ./config --prefix=/opt/tongsuo-8.5.0 shared
+          make -j2
+          make install_sw
+
+      - name: 构建项目铜锁集成测试
+        run: |
+          cmake -S . -B build-tongsuo -DCMAKE_BUILD_TYPE=Release -DCERTSERVERS_WITH_TONGSUO=ON -DTONGSUO_ROOT=/opt/tongsuo-8.5.0
+          cmake --build build-tongsuo --parallel
+          LD_LIBRARY_PATH=/opt/tongsuo-8.5.0/lib:/opt/tongsuo-8.5.0/lib64 ctest --test-dir build-tongsuo --output-on-failure

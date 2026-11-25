@@ -89,3 +89,5 @@ CA 与 RADIUS 保持解耦，不直接共享数据库，也不建议让 RADIUS �
 - [设备身份与设备组管理设计](docs/device-identity.md)
 - [WAPI 证书格式与签发要求](docs/wapicert-profile.md)
 - [WAPI 证书格式规范原文及配套图片](docs/wapicert/wapicert.md)
+
+- [项目技术尽调与风险评估报告（初步）](docs/technical-audit.md)

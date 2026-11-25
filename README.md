@@ -80,3 +80,12 @@ CA 与 RADIUS 保持解耦，不直接共享数据库，也不建议让 RADIUS �
 详细设计：
 - [证书领域模板与字段规则](docs/domain-templates.md)
 - [LDAP 身份验证与证书申请审核](docs/ldap-integration.md)
+
+
+## LDAP、设备身份与 WAPI 专项设计
+
+- [LDAP 对接与证书申请审批需求](docs/ldap-application-requirements.md)
+- [LDAP 身份验证与证书申请审核设计](docs/ldap-integration.md)
+- [设备身份与设备组管理设计](docs/device-identity.md)
+- [WAPI 证书格式与签发要求](docs/wapicert-profile.md)
+- [WAPI 证书格式规范原文及配套图片](docs/wapicert/wapicert.md)

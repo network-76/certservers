@@ -12,7 +12,14 @@
 4. 运行时动态库解析必须验证实际加载路径，避免编译时链接铜锁、运行时却加载系统 OpenSSL 的情况。
 5. 初期仅对服务实际使用的密码 API 做最小封装；不在业务模块直接调用 OpenSSL/Tongsuo 专有接口。
 
-## 2. 分阶段落地
+## 2. 版本识别注意事项
+
+- 不以 `OPENSSL_VERSION_TEXT`、`OpenSSL_version()` 或 `openssl version` 的单一输出判断铜锁版本：铜锁 8.x 与 OpenSSL 共享兼容版本信息，banner 可能只显示其 OpenSSL 基线版本。
+- 铜锁官方 TSAPI 文档说明 `TSAPI_Version()` 在 8.5.0 引入，返回动态分配的版本字符串，调用方需用 `OPENSSL_free()` 释放。该接口可作为 8.5.0 探测候选，但需在固定 tag 的头文件与链接测试中确认。
+- 8.4.0 对照不能依赖 8.5.0 才引入的 TSAPI。其版本识别方案需以固定构建产物、铜锁 CLI 的完整版本信息及实际链接/加载路径交叉验证；在完成验证前，不把通用 OpenSSL 版本号当作铜锁版本证明。
+- Linux 动态库解析证据至少包含 `ldd`/`readelf` 输出及运行时实际路径；仅设置 `TONGSUO_ROOT` 或链接成功不构成证明。
+
+## 3. 分阶段落地
 
 ### 阶段 A：依赖可识别性
 
@@ -33,17 +40,17 @@
 
 Debian 13 x86_64 验证通过后，再建立麒麟 V10 ARM64 构建验证；记录工具链、铜锁构建选项、运行时库路径及差异。真实设备/RADIUS 互通另列测试，不以库内测试替代。
 
-## 3. CI 原则
+## 4. CI 原则
 
 - 当前 Debian 工作流的脚手架测试与 GCC 静态分析保持独立。
 - 铜锁源码构建/缓存和密码 API 测试作为单独 job 或明确阶段，固定 tag/commit；不得以浮动分支作为验证基准。
 - 8.5.0 与 8.4.0 分开记录结果，避免同一构建目录或缓存混用。
 - 在构建依赖和测试程序落地前，不将“CI 通过”描述为铜锁或证书功能已验证。
 
-## 4. 依据
+## 5. 依据
 
 铜锁官方编译说明采用独立安装前缀，并支持分离安装运行库、开发头文件；官方 8.5.0 发布说明列出相对 8.4.0 的功能与安全更新。具体 API、算法参数、证书配置仍须以固定版本的头文件和实际测试结果为准。
 
-- https://tongsuo.net/docs/compilation/compile-and-install/
+- https://tongsuo.net/docs/compilation/compile-and-install/\n- https://www.tongsuo.net/docs/api/tsapi/
 - https://www.tongsuo.net/docs/release-note/Tongsuo-8.5.0/
 - https://github.com/Tongsuo-Project/Tongsuo/releases/tag/8.5.0

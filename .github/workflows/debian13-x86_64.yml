@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-debian13-x86_64:
-    name: Debian 13 x86_64 编译与冒烟检查
+    name: Debian 13 x86_64 编译与基础检查
     runs-on: ubuntu-latest
     container:
       image: debian:13
@@ -32,8 +32,10 @@ jobs:
       - name: 编译
         run: cmake --build build --parallel
 
-      - name: 检查占位程序输出
+      - name: 运行 CTest
+        run: ctest --test-dir build --output-on-failure
+
+      - name: GCC 静态分析构建
         run: |
-          output="$(./build/certservers)"
-          printf '%s\n' "$output"
-          test "$output" = "certservers scaffold: implementation pending"
+          cmake -S . -B build-analyzer -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-fanalyzer"
+          cmake --build build-analyzer --parallel

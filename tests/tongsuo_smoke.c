@@ -89,7 +89,6 @@ static int crl_roundtrip(EVP_PKEY *key)
         X509_NAME_add_entry_by_txt(X509_get_subject_name(cert), "CN",
             MBSTRING_ASC, (const unsigned char *)"certservers CRL issuer", -1, -1, 0) != 1 ||
         X509_CRL_set_version(crl, 1) != 1 ||
-        X509_CRL_set_issuer_name(crl, X509_get_subject_name(cert)) != 1 ||
         X509_CRL_set_issuer_name(crl, X509_get_subject_name(cert)) != 1) {
         fprintf(stderr, "CRL creation/signing failed\n");
         goto cleanup;

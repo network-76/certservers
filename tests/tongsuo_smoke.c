@@ -90,9 +90,7 @@ static int crl_roundtrip(EVP_PKEY *key)
             MBSTRING_ASC, (const unsigned char *)"certservers CRL issuer", -1, -1, 0) != 1 ||
         X509_CRL_set_version(crl, 1) != 1 ||
         X509_CRL_set_issuer_name(crl, X509_get_subject_name(cert)) != 1 ||
-        X509_CRL_set1_lastUpdate(crl, X509_gmtime_adj(NULL, 0)) != 1 ||
-        X509_CRL_set1_nextUpdate(crl, X509_gmtime_adj(NULL, 86400)) != 1 ||
-        X509_CRL_sign(crl, key, EVP_sm3()) <= 0) {
+        X509_CRL_set_issuer_name(crl, X509_get_subject_name(cert)) != 1) {
         fprintf(stderr, "CRL creation/signing failed\n");
         goto cleanup;
     }
@@ -102,7 +100,7 @@ static int crl_roundtrip(EVP_PKEY *key)
         X509_CRL_set1_lastUpdate(crl, last_update) != 1 ||
         X509_CRL_set1_nextUpdate(crl, next_update) != 1 ||
         X509_CRL_sign(crl, key, EVP_sm3()) <= 0) {
-        fprintf(stderr, "CRL validity or signing failed\\n");
+        fprintf(stderr, "CRL validity or signing failed\n");
         goto cleanup;
     }
 

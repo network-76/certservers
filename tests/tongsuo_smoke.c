@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static int certificate_roundtrip(EVP_PKEY *key)
+static int certificate_roundtrip(EVP_PKEY *key, EVP_PKEY *wrong_key)
 {
     X509 *cert = NULL, *decoded = NULL;
     BIO *bio = NULL;
@@ -30,7 +30,7 @@ static int certificate_roundtrip(EVP_PKEY *key)
         goto cleanup;
     }
 
-    if (X509_verify(cert, key) != 1) {
+    if (X509_verify(cert, key) != 1 || X509_verify(cert, wrong_key) == 1) {
         fprintf(stderr, "certificate signature verification failed\n");
         goto cleanup;
     }
@@ -73,7 +73,7 @@ cleanup:
     return ok;
 }
 
-static int crl_roundtrip(EVP_PKEY *key)
+static int crl_roundtrip(EVP_PKEY *key, EVP_PKEY *wrong_key)
 {
     X509 *cert = NULL;
     X509_CRL *crl = NULL, *decoded = NULL;
@@ -109,7 +109,8 @@ static int crl_roundtrip(EVP_PKEY *key)
         goto cleanup;
     }
     decoded = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
-    if (decoded == NULL || X509_CRL_verify(decoded, key) != 1) {
+    if (decoded == NULL || X509_CRL_verify(decoded, key) != 1 ||
+        X509_CRL_verify(decoded, wrong_key) == 1) {
         fprintf(stderr, "PEM CRL roundtrip/signature verification failed\n");
         goto cleanup;
     }
@@ -150,7 +151,7 @@ int main(void)
     size_t siglen = 0;
     unsigned char *sig = NULL;
     char *version = NULL;
-    EVP_PKEY *key = NULL;
+    EVP_PKEY *key = NULL, *wrong_key = NULL;
     int ok = 0;
 
     version = TSAPI_Version();
@@ -167,6 +168,12 @@ int main(void)
         goto cleanup;
     }
 
+    wrong_key = TSAPI_SM2Keygen();
+    if (wrong_key == NULL) {
+        fprintf(stderr, "second TSAPI_SM2Keygen failed\n");
+        goto cleanup;
+    }
+
     sig = TSAPI_SM2Sign(key, message, sizeof(message) - 1, &siglen);
     if (sig == NULL || siglen == 0 ||
         TSAPI_SM2Verify(key, message, sizeof(message) - 1, sig, siglen) != 1) {
@@ -175,13 +182,14 @@ int main(void)
     }
     puts("TSAPI SM2 keygen/sign/verify: PASS");
 
-    if (!certificate_roundtrip(key) || !crl_roundtrip(key))
+    if (!certificate_roundtrip(key, wrong_key) || !crl_roundtrip(key, wrong_key))
         goto cleanup;
 
     ok = 1;
 cleanup:
     OPENSSL_free(sig);
     OPENSSL_free(version);
+    EVP_PKEY_free(wrong_key);
     EVP_PKEY_free(key);
     return ok ? 0 : 1;
 }

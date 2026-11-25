@@ -69,4 +69,11 @@ jobs:
         run: |
           cmake -S . -B build-tongsuo -DCMAKE_BUILD_TYPE=Release -DCERTSERVERS_WITH_TONGSUO=ON -DTONGSUO_ROOT=/opt/tongsuo-8.5.0
           cmake --build build-tongsuo --parallel
-          LD_LIBRARY_PATH=/opt/tongsuo-8.5.0/lib:/opt/tongsuo-8.5.0/lib64 ctest --test-dir build-tongsuo --output-on-failure
+          echo "Resolved crypto libraries:"
+          ldd build-tongsuo/tongsuo_smoke
+          ldd build-tongsuo/tongsuo_smoke | grep -E 'lib(ssl|crypto)\.so' | grep -F '/opt/tongsuo-8.5.0/'
+          if ldd build-tongsuo/tongsuo_smoke | grep -E 'lib(ssl|crypto)\.so' | grep -vF '/opt/tongsuo-8.5.0/'; then
+            echo "ERROR: smoke test resolved SSL/crypto outside TONGSUO_ROOT"
+            exit 1
+          fi
+          ctest --test-dir build-tongsuo --output-on-failure

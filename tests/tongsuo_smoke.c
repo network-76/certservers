@@ -127,7 +127,8 @@ static int crl_roundtrip(EVP_PKEY *key, EVP_PKEY *wrong_key)
     cursor = der;
     decoded = d2i_X509_CRL(NULL, (const unsigned char **)&cursor, der_len);
     if (decoded == NULL || cursor != der + der_len ||
-        X509_CRL_verify(decoded, key) != 1) {
+        X509_CRL_verify(decoded, key) != 1 ||
+        X509_CRL_verify(decoded, wrong_key) == 1) {
         fprintf(stderr, "DER CRL roundtrip/signature verification failed\n");
         goto cleanup;
     }
@@ -176,7 +177,9 @@ int main(void)
 
     sig = TSAPI_SM2Sign(key, message, sizeof(message) - 1, &siglen);
     if (sig == NULL || siglen == 0 ||
-        TSAPI_SM2Verify(key, message, sizeof(message) - 1, sig, siglen) != 1) {
+        TSAPI_SM2Verify(key, message, sizeof(message) - 1, sig, siglen) != 1 ||
+        TSAPI_SM2Verify(wrong_key, message, sizeof(message) - 1, sig, siglen) == 1 ||
+        TSAPI_SM2Verify(key, (const unsigned char *)"altered", 7, sig, siglen) == 1) {
         fprintf(stderr, "TSAPI SM2 sign/verify failed\n");
         goto cleanup;
     }

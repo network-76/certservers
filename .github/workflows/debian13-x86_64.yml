@@ -1,0 +1,39 @@
+name: Debian 13 x86_64 构建验证
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-debian13-x86_64:
+    name: Debian 13 x86_64 编译与冒烟检查
+    runs-on: ubuntu-latest
+    container:
+      image: debian:13
+    steps:
+      - name: 安装构建工具
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates cmake gcc make git
+          rm -rf /var/lib/apt/lists/*
+
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: 编译
+        run: cmake --build build --parallel
+
+      - name: 检查占位程序输出
+        run: |
+          output="$(./build/certservers)"
+          printf '%s\n' "$output"
+          test "$output" = "certservers scaffold: implementation pending"

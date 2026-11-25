@@ -91,3 +91,4 @@ CA 与 RADIUS 保持解耦，不直接共享数据库，也不建议让 RADIUS �
 - [WAPI 证书格式规范原文及配套图片](docs/wapicert/wapicert.md)
 
 - [项目技术尽调与风险评估报告（初步）](docs/technical-audit.md)
+- [铜锁与 WAPI 密码能力验证计划](docs/crypto-validation-plan.md)

@@ -20,7 +20,7 @@ jobs:
       - name: 安装构建工具
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates cmake gcc make git
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates cmake build-essential git
           rm -rf /var/lib/apt/lists/*
 
       - name: 检出代码

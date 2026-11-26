@@ -258,6 +258,23 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
                 X509_STORE_CTX_get_error(ctx));
         goto cleanup;
     }
+    /* An expired CRL must fail closed rather than validate the leaf. */
+    {
+        ASN1_TIME *expired = X509_gmtime_adj(NULL, -86400);
+        if (expired == NULL || X509_CRL_set1_nextUpdate(crl, expired) != 1 ||
+            X509_CRL_sign(crl, ca_key, EVP_sm3()) <= 0 ||
+            X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+            X509_verify_cert(ctx) == 1 ||
+            X509_STORE_CTX_get_error(ctx) != X509_V_ERR_CRL_HAS_EXPIRED) {
+            fprintf(stderr, "X509_STORE CRL_CHECK did not reject expired CRL (error=%d)\\n",
+                    X509_STORE_CTX_get_error(ctx));
+            ASN1_TIME_free(expired);
+            goto cleanup;
+        }
+        ASN1_TIME_free(expired);
+    }
+    puts("X509_STORE CRL_CHECK expired CRL rejection: PASS");
+
     puts("X509_STORE CRL_CHECK revoked rejection and unrevoked acceptance: PASS");
 
     puts("CA-to-leaf chain and CRL revoked/unrevoked serial lookup: PASS");

@@ -153,7 +153,7 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     X509_STORE *store = NULL;
     X509_STORE_CTX *ctx = NULL;
     X509_CRL *crl = NULL;
-    X509_REVOKED *revoked = NULL;
+    X509_REVOKED *revoked = NULL, *found = NULL;
     ASN1_INTEGER *serial = NULL;
     ASN1_TIME *now = NULL, *next = NULL;
     int ok = 0;
@@ -208,7 +208,7 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     revoked = NULL;
     if (X509_CRL_sign(crl, ca_key, EVP_sm3()) <= 0 ||
-        X509_CRL_get0_by_serial(NULL, crl, X509_get_serialNumber(leaf)) != 1) {
+        X509_CRL_get0_by_serial(&found, crl, X509_get_serialNumber(leaf)) != 1) {
         fprintf(stderr, "CRL revoked serial lookup failed\n");
         goto cleanup;
     }

@@ -320,6 +320,67 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
 
 
 
+    /* A matching CRL issuer name with a signature from the wrong key must fail. */
+    {
+        X509_STORE *bad_store = X509_STORE_new();
+        X509_STORE_CTX *bad_ctx = X509_STORE_CTX_new();
+        ASN1_TIME *valid_from = X509_gmtime_adj(NULL, 0);
+        ASN1_TIME *valid_until = X509_gmtime_adj(NULL, 86400);
+        if (bad_store == NULL || bad_ctx == NULL || valid_from == NULL ||
+            valid_until == NULL ||
+            X509_CRL_set1_lastUpdate(crl, valid_from) != 1 ||
+            X509_CRL_set1_nextUpdate(crl, valid_until) != 1 ||
+            X509_CRL_sign(crl, leaf_key, EVP_sm3()) <= 0 ||
+            X509_STORE_add_cert(bad_store, ca) != 1 ||
+            X509_STORE_add_crl(bad_store, crl) != 1 ||
+            X509_STORE_set_flags(bad_store, X509_V_FLAG_CRL_CHECK) != 1 ||
+            X509_STORE_CTX_init(bad_ctx, bad_store, leaf, NULL) != 1 ||
+            X509_verify_cert(bad_ctx) == 1 ||
+            X509_STORE_CTX_get_error(bad_ctx) != X509_V_ERR_CRL_SIGNATURE_FAILURE) {
+            fprintf(stderr, "X509_STORE CRL_CHECK did not reject invalid CRL signature (error=%d)\\n",
+                    bad_ctx != NULL ? X509_STORE_CTX_get_error(bad_ctx) : -1);
+            ASN1_TIME_free(valid_from);
+            ASN1_TIME_free(valid_until);
+            X509_STORE_CTX_free(bad_ctx);
+            X509_STORE_free(bad_store);
+            goto cleanup;
+        }
+        ASN1_TIME_free(valid_from);
+        ASN1_TIME_free(valid_until);
+        X509_STORE_CTX_free(bad_ctx);
+        X509_STORE_free(bad_store);
+    }
+    puts("X509_STORE CRL_CHECK invalid CRL signature rejection: PASS");
+
+    /* A CRL naming a different issuer must not satisfy this CA's CRL check. */
+    {
+        X509_STORE *issuer_store = X509_STORE_new();
+        X509_STORE_CTX *issuer_ctx = X509_STORE_CTX_new();
+        X509_NAME *other_issuer = X509_NAME_new();
+        if (issuer_store == NULL || issuer_ctx == NULL || other_issuer == NULL ||
+            X509_NAME_add_entry_by_txt(other_issuer, "CN", MBSTRING_ASC,
+                (const unsigned char *)"unrelated CRL issuer", -1, -1, 0) != 1 ||
+            X509_CRL_set_issuer_name(crl, other_issuer) != 1 ||
+            X509_CRL_sign(crl, ca_key, EVP_sm3()) <= 0 ||
+            X509_STORE_add_cert(issuer_store, ca) != 1 ||
+            X509_STORE_add_crl(issuer_store, crl) != 1 ||
+            X509_STORE_set_flags(issuer_store, X509_V_FLAG_CRL_CHECK) != 1 ||
+            X509_STORE_CTX_init(issuer_ctx, issuer_store, leaf, NULL) != 1 ||
+            X509_verify_cert(issuer_ctx) == 1 ||
+            X509_STORE_CTX_get_error(issuer_ctx) != X509_V_ERR_UNABLE_TO_GET_CRL) {
+            fprintf(stderr, "X509_STORE CRL_CHECK did not reject mismatched CRL issuer (error=%d)\\n",
+                    issuer_ctx != NULL ? X509_STORE_CTX_get_error(issuer_ctx) : -1);
+            X509_NAME_free(other_issuer);
+            X509_STORE_CTX_free(issuer_ctx);
+            X509_STORE_free(issuer_store);
+            goto cleanup;
+        }
+        X509_NAME_free(other_issuer);
+        X509_STORE_CTX_free(issuer_ctx);
+        X509_STORE_free(issuer_store);
+    }
+    puts("X509_STORE CRL_CHECK mismatched CRL issuer rejection: PASS");
+
     puts("X509_STORE CRL_CHECK revoked rejection and unrevoked acceptance: PASS");
 
     puts("CA-to-leaf chain and CRL revoked/unrevoked serial lookup: PASS");

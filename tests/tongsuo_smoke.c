@@ -242,6 +242,48 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     puts("X.509 chain rejects unrelated trust anchor: PASS");
 
+    /* A CA:FALSE intermediate must not issue a valid chain. */
+    {
+        EVP_PKEY *nonca_key = TSAPI_SM2Keygen();
+        X509 *nonca = X509_new();
+        STACK_OF(X509) *untrusted = sk_X509_new_null();
+        X509_STORE_CTX *nonca_ctx = X509_STORE_CTX_new();
+        X509_EXTENSION *nonca_ext = NULL;
+        int rejected = 0;
+        if (nonca_key == NULL || nonca == NULL || untrusted == NULL || nonca_ctx == NULL ||
+            X509_set_version(nonca, 2) != 1 ||
+            ASN1_INTEGER_set(X509_get_serialNumber(nonca), 201) != 1 ||
+            X509_gmtime_adj(X509_getm_notBefore(nonca), 0) == NULL ||
+            X509_gmtime_adj(X509_getm_notAfter(nonca), 86400) == NULL ||
+            X509_set_pubkey(nonca, nonca_key) != 1 ||
+            (nonca_ext = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints, "critical,CA:FALSE")) == NULL ||
+            X509_add_ext(nonca, nonca_ext, -1) != 1 ||
+            (X509_EXTENSION_free(nonca_ext), nonca_ext = NULL, 0) ||
+            X509_NAME_add_entry_by_txt(X509_get_subject_name(nonca), "CN", MBSTRING_ASC,
+                (const unsigned char *)"non-CA intermediate", -1, -1, 0) != 1 ||
+            X509_set_issuer_name(nonca, X509_get_subject_name(ca)) != 1 ||
+            X509_sign(nonca, ca_key, EVP_sm3()) <= 0 ||
+            X509_set_issuer_name(leaf, X509_get_subject_name(nonca)) != 1 ||
+            X509_sign(leaf, nonca_key, EVP_sm3()) <= 0 ||
+            sk_X509_push(untrusted, nonca) == 0 ||
+            X509_STORE_CTX_init(nonca_ctx, store, leaf, untrusted) != 1) {
+            fprintf(stderr, "failed to construct non-CA intermediate chain\n");
+            X509_EXTENSION_free(nonca_ext); sk_X509_free(untrusted);
+            X509_STORE_CTX_free(nonca_ctx); X509_free(nonca); EVP_PKEY_free(nonca_key);
+            goto cleanup;
+        }
+        rejected = X509_verify_cert(nonca_ctx) != 1 &&
+                   X509_STORE_CTX_get_error(nonca_ctx) == X509_V_ERR_INVALID_CA;
+        X509_EXTENSION_free(nonca_ext); sk_X509_free(untrusted);
+        X509_STORE_CTX_free(nonca_ctx); X509_free(nonca); EVP_PKEY_free(nonca_key);
+        if (!rejected || X509_set_issuer_name(leaf, X509_get_subject_name(ca)) != 1 ||
+            X509_sign(leaf, ca_key, EVP_sm3()) <= 0) {
+            fprintf(stderr, "X.509 chain did not reject CA:FALSE intermediate\n");
+            goto cleanup;
+        }
+    }
+    puts("X.509 chain rejects CA:FALSE intermediate: PASS");
+
     /* A matching signature alone is insufficient when the issuer name is wrong. */
     {
         X509_NAME *wrong_issuer = X509_NAME_new();

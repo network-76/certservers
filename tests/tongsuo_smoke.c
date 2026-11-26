@@ -211,6 +211,40 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
         goto cleanup;
     }
 
+    /* A certificate without CA:TRUE must not act as an issuing CA. */
+    {
+        int bc_index = X509_get_ext_by_NID(ca, NID_basic_constraints, -1);
+        X509_EXTENSION *bad_bc = NULL;
+        if (bc_index < 0 ||
+            (bad_bc = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints,
+                                          "critical,CA:FALSE")) == NULL ||
+            X509_delete_ext(ca, bc_index) == NULL ||
+            X509_add_ext(ca, bad_bc, -1) != 1 ||
+            X509_sign(ca, ca_key, EVP_sm3()) <= 0 ||
+            X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+            X509_verify_cert(ctx) == 1 ||
+            X509_STORE_CTX_get_error(ctx) != X509_V_ERR_INVALID_CA) {
+            fprintf(stderr, "X.509 chain did not reject non-CA issuer (error=%d)\\n",
+                    X509_STORE_CTX_get_error(ctx));
+            X509_EXTENSION_free(bad_bc);
+            goto cleanup;
+        }
+        X509_EXTENSION_free(bad_bc);
+        bc_index = X509_get_ext_by_NID(ca, NID_basic_constraints, -1);
+        if (bc_index < 0 ||
+            X509_delete_ext(ca, bc_index) == NULL ||
+            (bad_bc = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints,
+                                          "critical,CA:TRUE")) == NULL ||
+            X509_add_ext(ca, bad_bc, -1) != 1 ||
+            X509_sign(ca, ca_key, EVP_sm3()) <= 0) {
+            fprintf(stderr, "failed to restore CA basic constraints\\n");
+            X509_EXTENSION_free(bad_bc);
+            goto cleanup;
+        }
+        X509_EXTENSION_free(bad_bc);
+    }
+    puts("X.509 chain rejects non-CA issuer: PASS");
+
     /* A leaf issued by this CA must not validate against an unrelated trust anchor. */
     {
         X509 *unrelated_ca = X509_new();

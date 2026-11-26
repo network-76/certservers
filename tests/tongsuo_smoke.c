@@ -284,6 +284,71 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     puts("X.509 chain rejects CA:FALSE intermediate: PASS");
 
+    /* pathLenConstraint=0 forbids a subordinate CA below this intermediate. */
+    {
+        EVP_PKEY *path0_key = TSAPI_SM2Keygen();
+        EVP_PKEY *path1_key = TSAPI_SM2Keygen();
+        X509 *path0 = X509_new(), *path1 = X509_new();
+        STACK_OF(X509) *path_untrusted = sk_X509_new_null();
+        X509_STORE_CTX *path_ctx = X509_STORE_CTX_new();
+        X509_EXTENSION *path_ext = NULL;
+        int rejected = 0;
+        if (path0_key == NULL || path1_key == NULL || path0 == NULL || path1 == NULL ||
+            path_untrusted == NULL || path_ctx == NULL ||
+            X509_set_version(path0, 2) != 1 ||
+            ASN1_INTEGER_set(X509_get_serialNumber(path0), 203) != 1 ||
+            X509_gmtime_adj(X509_getm_notBefore(path0), 0) == NULL ||
+            X509_gmtime_adj(X509_getm_notAfter(path0), 86400) == NULL ||
+            X509_set_pubkey(path0, path0_key) != 1 ||
+            (path_ext = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints, "critical,CA:TRUE,pathlen:0")) == NULL ||
+            X509_add_ext(path0, path_ext, -1) != 1 ||
+            (X509_EXTENSION_free(path_ext), path_ext = NULL, 0) ||
+            (path_ext = X509V3_EXT_conf_nid(NULL, NULL, NID_key_usage, "critical,keyCertSign,cRLSign")) == NULL ||
+            X509_add_ext(path0, path_ext, -1) != 1 ||
+            (X509_EXTENSION_free(path_ext), path_ext = NULL, 0) ||
+            X509_NAME_add_entry_by_txt(X509_get_subject_name(path0), "CN", MBSTRING_ASC,
+                (const unsigned char *)"pathLen zero intermediate", -1, -1, 0) != 1 ||
+            X509_set_issuer_name(path0, X509_get_subject_name(ca)) != 1 ||
+            X509_sign(path0, ca_key, EVP_sm3()) <= 0 ||
+            X509_set_version(path1, 2) != 1 ||
+            ASN1_INTEGER_set(X509_get_serialNumber(path1), 204) != 1 ||
+            X509_gmtime_adj(X509_getm_notBefore(path1), 0) == NULL ||
+            X509_gmtime_adj(X509_getm_notAfter(path1), 86400) == NULL ||
+            X509_set_pubkey(path1, path1_key) != 1 ||
+            (path_ext = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints, "critical,CA:TRUE")) == NULL ||
+            X509_add_ext(path1, path_ext, -1) != 1 ||
+            (X509_EXTENSION_free(path_ext), path_ext = NULL, 0) ||
+            (path_ext = X509V3_EXT_conf_nid(NULL, NULL, NID_key_usage, "critical,keyCertSign,cRLSign")) == NULL ||
+            X509_add_ext(path1, path_ext, -1) != 1 ||
+            (X509_EXTENSION_free(path_ext), path_ext = NULL, 0) ||
+            X509_NAME_add_entry_by_txt(X509_get_subject_name(path1), "CN", MBSTRING_ASC,
+                (const unsigned char *)"subordinate intermediate", -1, -1, 0) != 1 ||
+            X509_set_issuer_name(path1, X509_get_subject_name(path0)) != 1 ||
+            X509_sign(path1, path0_key, EVP_sm3()) <= 0 ||
+            X509_set_issuer_name(leaf, X509_get_subject_name(path1)) != 1 ||
+            X509_sign(leaf, path1_key, EVP_sm3()) <= 0 ||
+            sk_X509_push(path_untrusted, path0) == 0 ||
+            sk_X509_push(path_untrusted, path1) == 0 ||
+            X509_STORE_CTX_init(path_ctx, store, leaf, path_untrusted) != 1) {
+            fprintf(stderr, "failed to construct pathLenConstraint chain\n");
+            X509_EXTENSION_free(path_ext); sk_X509_free(path_untrusted);
+            X509_STORE_CTX_free(path_ctx); X509_free(path0); X509_free(path1);
+            EVP_PKEY_free(path0_key); EVP_PKEY_free(path1_key);
+            goto cleanup;
+        }
+        rejected = X509_verify_cert(path_ctx) != 1 &&
+                   X509_STORE_CTX_get_error(path_ctx) == X509_V_ERR_PATH_LENGTH_EXCEEDED;
+        X509_EXTENSION_free(path_ext); sk_X509_free(path_untrusted);
+        X509_STORE_CTX_free(path_ctx); X509_free(path0); X509_free(path1);
+        EVP_PKEY_free(path0_key); EVP_PKEY_free(path1_key);
+        if (!rejected || X509_set_issuer_name(leaf, X509_get_subject_name(ca)) != 1 ||
+            X509_sign(leaf, ca_key, EVP_sm3()) <= 0) {
+            fprintf(stderr, "X.509 chain did not enforce pathLenConstraint\n");
+            goto cleanup;
+        }
+    }
+    puts("X.509 chain enforces intermediate pathLenConstraint: PASS");
+
 
     /* A matching signature alone is insufficient when the issuer name is wrong. */
     {

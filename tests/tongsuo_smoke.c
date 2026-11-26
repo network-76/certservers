@@ -208,7 +208,7 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     revoked = NULL;
     if (X509_CRL_sign(crl, ca_key, EVP_sm3()) <= 0 ||
-        X509_CRL_get0_by_serial(&found, crl, X509_get_serialNumber(leaf)) != 1) {
+        X509_CRL_get0_by_serial(crl, &found, X509_get_serialNumber(leaf)) != 1) {
         fprintf(stderr, "CRL revoked serial lookup failed\n");
         goto cleanup;
     }

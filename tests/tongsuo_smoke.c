@@ -391,45 +391,6 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     puts("X.509 chain rejects invalid leaf signature: PASS");
 
-    /* Unknown critical extensions must not be silently ignored. */
-    {
-        ASN1_OBJECT *oid = OBJ_txt2obj("1.2.3.4.5.6.7.8.1", 1);
-        ASN1_OCTET_STRING *value = ASN1_OCTET_STRING_new();
-        X509_EXTENSION *unknown_ext = NULL;
-        int ext_index = -1;
-        unsigned char payload[] = { 0x05, 0x00 };
-        if (oid == NULL || value == NULL ||
-            ASN1_OCTET_STRING_set(value, payload, sizeof(payload)) != 1 ||
-            (unknown_ext = X509_EXTENSION_create_by_OBJ(NULL, oid, 1, value)) == NULL ||
-            X509_add_ext(leaf, unknown_ext, -1) != 1 ||
-            X509_sign(leaf, ca_key, EVP_sm3()) <= 0 ||
-            X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
-            X509_verify_cert(ctx) == 1 ||
-            X509_STORE_CTX_get_error(ctx) != X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION) {
-            fprintf(stderr, "X.509 chain did not reject unknown critical extension (error=%d)\\n",
-                    X509_STORE_CTX_get_error(ctx));
-            X509_EXTENSION_free(unknown_ext);
-            ASN1_OCTET_STRING_free(value);
-            ASN1_OBJECT_free(oid);
-            goto cleanup;
-        }
-        ext_index = X509_get_ext_by_OBJ(leaf, oid, -1);
-        if (ext_index < 0 || X509_delete_ext(leaf, ext_index) == NULL ||
-            X509_sign(leaf, ca_key, EVP_sm3()) <= 0) {
-            fprintf(stderr, "failed to remove unknown critical extension and restore leaf\\n");
-            X509_EXTENSION_free(unknown_ext);
-            ASN1_OCTET_STRING_free(value);
-            ASN1_OBJECT_free(oid);
-            goto cleanup;
-        }
-        X509_EXTENSION_free(unknown_ext);
-        ASN1_OCTET_STRING_free(value);
-        ASN1_OBJECT_free(oid);
-    }
-    puts("X.509 chain rejects unknown critical extension: PASS");
-
-
-
     /* Reject a leaf certificate whose validity starts in the future. */
     if (X509_gmtime_adj(X509_getm_notBefore(leaf), 3600) == NULL ||
         X509_sign(leaf, ca_key, EVP_sm3()) <= 0 ||

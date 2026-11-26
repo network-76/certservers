@@ -3,6 +3,7 @@
 #include <openssl/pem.h>
 #include <openssl/tsapi.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -157,6 +158,7 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     ASN1_INTEGER *serial = NULL;
     ASN1_TIME *now = NULL, *next = NULL;
     int ok = 0;
+    X509_EXTENSION *ext = NULL;
 
     ca = X509_new();
     leaf = X509_new();
@@ -175,6 +177,12 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
         X509_gmtime_adj(X509_getm_notBefore(ca), 0) == NULL ||
         X509_gmtime_adj(X509_getm_notAfter(ca), 86400) == NULL ||
         X509_set_pubkey(ca, ca_key) != 1 ||
+        (ext = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints, "critical,CA:TRUE")) == NULL ||
+        X509_add_ext(ca, ext, -1) != 1 ||
+        (X509_EXTENSION_free(ext), ext = NULL, 0) ||
+        (ext = X509V3_EXT_conf_nid(NULL, NULL, NID_key_usage, "critical,keyCertSign,cRLSign")) == NULL ||
+        X509_add_ext(ca, ext, -1) != 1 ||
+        (X509_EXTENSION_free(ext), ext = NULL, 0) ||
         X509_NAME_add_entry_by_txt(X509_get_subject_name(ca), "CN", MBSTRING_ASC,
             (const unsigned char *)"certservers test CA", -1, -1, 0) != 1 ||
         X509_set_issuer_name(ca, X509_get_subject_name(ca)) != 1 ||
@@ -184,6 +192,12 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
         X509_gmtime_adj(X509_getm_notBefore(leaf), 0) == NULL ||
         X509_gmtime_adj(X509_getm_notAfter(leaf), 86400) == NULL ||
         X509_set_pubkey(leaf, leaf_key) != 1 ||
+        (ext = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints, "critical,CA:FALSE")) == NULL ||
+        X509_add_ext(leaf, ext, -1) != 1 ||
+        (X509_EXTENSION_free(ext), ext = NULL, 0) ||
+        (ext = X509V3_EXT_conf_nid(NULL, NULL, NID_key_usage, "critical,digitalSignature")) == NULL ||
+        X509_add_ext(leaf, ext, -1) != 1 ||
+        (X509_EXTENSION_free(ext), ext = NULL, 0) ||
         X509_NAME_add_entry_by_txt(X509_get_subject_name(leaf), "CN", MBSTRING_ASC,
             (const unsigned char *)"certservers test leaf", -1, -1, 0) != 1 ||
         X509_set_issuer_name(leaf, X509_get_subject_name(ca)) != 1 ||
@@ -215,6 +229,7 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     puts("CA-to-leaf chain and CRL revoked serial lookup: PASS");
     ok = 1;
 cleanup:
+    X509_EXTENSION_free(ext);
     X509_free(ca);
     X509_free(leaf);
     X509_STORE_free(store);

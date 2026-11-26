@@ -146,13 +146,94 @@ cleanup:
     return ok;
 }
 
+
+static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
+{
+    X509 *ca = NULL, *leaf = NULL;
+    X509_STORE *store = NULL;
+    X509_STORE_CTX *ctx = NULL;
+    X509_CRL *crl = NULL;
+    X509_REVOKED *revoked = NULL;
+    ASN1_INTEGER *serial = NULL;
+    ASN1_TIME *now = NULL, *next = NULL;
+    int ok = 0;
+
+    ca = X509_new();
+    leaf = X509_new();
+    store = X509_STORE_new();
+    ctx = X509_STORE_CTX_new();
+    crl = X509_CRL_new();
+    revoked = X509_REVOKED_new();
+    serial = ASN1_INTEGER_new();
+    now = X509_gmtime_adj(NULL, 0);
+    next = X509_gmtime_adj(NULL, 86400);
+    if (ca == NULL || leaf == NULL || store == NULL || ctx == NULL ||
+        crl == NULL || revoked == NULL || serial == NULL || now == NULL ||
+        next == NULL ||
+        X509_set_version(ca, 2) != 1 ||
+        ASN1_INTEGER_set(X509_get_serialNumber(ca), 100) != 1 ||
+        X509_gmtime_adj(X509_getm_notBefore(ca), 0) == NULL ||
+        X509_gmtime_adj(X509_getm_notAfter(ca), 86400) == NULL ||
+        X509_set_pubkey(ca, ca_key) != 1 ||
+        X509_NAME_add_entry_by_txt(X509_get_subject_name(ca), "CN", MBSTRING_ASC,
+            (const unsigned char *)"certservers test CA", -1, -1, 0) != 1 ||
+        X509_set_issuer_name(ca, X509_get_subject_name(ca)) != 1 ||
+        X509_sign(ca, ca_key, EVP_sm3()) <= 0 ||
+        X509_set_version(leaf, 2) != 1 ||
+        ASN1_INTEGER_set(X509_get_serialNumber(leaf), 101) != 1 ||
+        X509_gmtime_adj(X509_getm_notBefore(leaf), 0) == NULL ||
+        X509_gmtime_adj(X509_getm_notAfter(leaf), 86400) == NULL ||
+        X509_set_pubkey(leaf, leaf_key) != 1 ||
+        X509_NAME_add_entry_by_txt(X509_get_subject_name(leaf), "CN", MBSTRING_ASC,
+            (const unsigned char *)"certservers test leaf", -1, -1, 0) != 1 ||
+        X509_set_issuer_name(leaf, X509_get_subject_name(ca)) != 1 ||
+        X509_sign(leaf, ca_key, EVP_sm3()) <= 0 ||
+        X509_STORE_add_cert(store, ca) != 1 ||
+        X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+        X509_verify_cert(ctx) != 1) {
+        fprintf(stderr, "CA-to-leaf chain verification failed\n");
+        goto cleanup;
+    }
+
+    if (X509_CRL_set_version(crl, 1) != 1 ||
+        X509_CRL_set_issuer_name(crl, X509_get_subject_name(ca)) != 1 ||
+        X509_CRL_set1_lastUpdate(crl, now) != 1 ||
+        X509_CRL_set1_nextUpdate(crl, next) != 1 ||
+        ASN1_INTEGER_set(serial, 101) != 1 ||
+        X509_REVOKED_set_serialNumber(revoked, serial) != 1 ||
+        X509_REVOKED_set_revocationDate(revoked, now) != 1 ||
+        X509_CRL_add0_revoked(crl, revoked) != 1) {
+        fprintf(stderr, "CRL revoked-entry construction failed\n");
+        goto cleanup;
+    }
+    revoked = NULL;
+    if (X509_CRL_sign(crl, ca_key, EVP_sm3()) <= 0 ||
+        X509_CRL_get0_by_serial(NULL, crl, X509_get_serialNumber(leaf)) != 1) {
+        fprintf(stderr, "CRL revoked serial lookup failed\n");
+        goto cleanup;
+    }
+    puts("CA-to-leaf chain and CRL revoked serial lookup: PASS");
+    ok = 1;
+cleanup:
+    X509_free(ca);
+    X509_free(leaf);
+    X509_STORE_free(store);
+    X509_STORE_CTX_free(ctx);
+    X509_CRL_free(crl);
+    X509_REVOKED_free(revoked);
+    ASN1_INTEGER_free(serial);
+    ASN1_TIME_free(now);
+    ASN1_TIME_free(next);
+    return ok;
+}
+
 int main(void)
 {
     static const unsigned char message[] = "certservers Tongsuo integration smoke test";
     size_t siglen = 0;
     unsigned char *sig = NULL;
     char *version = NULL;
-    EVP_PKEY *key = NULL, *wrong_key = NULL;
+    EVP_PKEY *key = NULL, *wrong_key = NULL, *leaf_key = NULL;
     int ok = 0;
 
     version = TSAPI_Version();
@@ -185,13 +266,16 @@ int main(void)
     }
     puts("TSAPI SM2 keygen/sign/verify: PASS");
 
-    if (!certificate_roundtrip(key, wrong_key) || !crl_roundtrip(key, wrong_key))
+    leaf_key = TSAPI_SM2Keygen();
+    if (leaf_key == NULL || !certificate_roundtrip(key, wrong_key) ||
+        !crl_roundtrip(key, wrong_key) || !ca_chain_and_revocation(key, leaf_key))
         goto cleanup;
 
     ok = 1;
 cleanup:
     OPENSSL_free(sig);
     OPENSSL_free(version);
+    EVP_PKEY_free(leaf_key);
     EVP_PKEY_free(wrong_key);
     EVP_PKEY_free(key);
     return ok ? 0 : 1;

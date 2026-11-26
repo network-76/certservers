@@ -242,6 +242,31 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     puts("X.509 chain rejects unrelated trust anchor: PASS");
 
+    /* A matching signature alone is insufficient when the issuer name is wrong. */
+    {
+        X509_NAME *wrong_issuer = X509_NAME_new();
+        if (wrong_issuer == NULL ||
+            X509_NAME_add_entry_by_txt(wrong_issuer, "CN", MBSTRING_ASC,
+                (const unsigned char *)"wrong issuer name", -1, -1, 0) != 1 ||
+            X509_set_issuer_name(leaf, wrong_issuer) != 1 ||
+            X509_sign(leaf, ca_key, EVP_sm3()) <= 0 ||
+            X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+            X509_verify_cert(ctx) == 1 ||
+            X509_STORE_CTX_get_error(ctx) != X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY) {
+            fprintf(stderr, "X.509 chain did not reject wrong issuer name (error=%d)\\n",
+                    X509_STORE_CTX_get_error(ctx));
+            X509_NAME_free(wrong_issuer);
+            goto cleanup;
+        }
+        X509_NAME_free(wrong_issuer);
+        if (X509_set_issuer_name(leaf, X509_get_subject_name(ca)) != 1 ||
+            X509_sign(leaf, ca_key, EVP_sm3()) <= 0) {
+            fprintf(stderr, "failed to restore leaf issuer\\n");
+            goto cleanup;
+        }
+    }
+    puts("X.509 chain rejects wrong issuer name: PASS");
+
     /* Reject a leaf certificate whose validity starts in the future. */
     if (X509_gmtime_adj(X509_getm_notBefore(leaf), 3600) == NULL ||
         X509_sign(leaf, ca_key, EVP_sm3()) <= 0 ||

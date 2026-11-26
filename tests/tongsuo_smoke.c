@@ -375,6 +375,23 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     puts("X.509 chain rejects wrong issuer name: PASS");
 
+    /* Correct issuer DN with a signature made by an unrelated key must fail. */
+    if (X509_set_issuer_name(leaf, X509_get_subject_name(ca)) != 1 ||
+        X509_sign(leaf, leaf_key, EVP_sm3()) <= 0 ||
+        X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+        X509_verify_cert(ctx) == 1 ||
+        X509_STORE_CTX_get_error(ctx) != X509_V_ERR_CERT_SIGNATURE_FAILURE) {
+        fprintf(stderr, "X.509 chain did not reject invalid leaf signature (error=%d)\\n",
+                X509_STORE_CTX_get_error(ctx));
+        goto cleanup;
+    }
+    if (X509_sign(leaf, ca_key, EVP_sm3()) <= 0) {
+        fprintf(stderr, "failed to restore leaf signature\\n");
+        goto cleanup;
+    }
+    puts("X.509 chain rejects invalid leaf signature: PASS");
+
+
     /* Reject a leaf certificate whose validity starts in the future. */
     if (X509_gmtime_adj(X509_getm_notBefore(leaf), 3600) == NULL ||
         X509_sign(leaf, ca_key, EVP_sm3()) <= 0 ||

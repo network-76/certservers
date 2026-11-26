@@ -222,11 +222,15 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     revoked = NULL;
     if (X509_CRL_sign(crl, ca_key, EVP_sm3()) <= 0 ||
-        X509_CRL_get0_by_serial(crl, &found, X509_get_serialNumber(leaf)) != 1) {
-        fprintf(stderr, "CRL revoked serial lookup failed\n");
+        X509_CRL_verify(crl, ca_key) != 1 ||
+        X509_CRL_get0_by_serial(crl, &found, X509_get_serialNumber(leaf)) != 1 ||
+        found == NULL ||
+        ASN1_INTEGER_cmp(X509_REVOKED_get0_serialNumber(found),
+                        X509_get_serialNumber(leaf)) != 0) {
+        fprintf(stderr, "CRL signature or revoked serial lookup failed\n");
         goto cleanup;
     }
-    puts("CA-to-leaf chain and CRL revoked serial lookup: PASS");
+    puts("CA-to-leaf chain and verified CRL revoked serial lookup: PASS");
     ok = 1;
 cleanup:
     X509_EXTENSION_free(ext);

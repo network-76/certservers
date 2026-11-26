@@ -239,6 +239,27 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
         fprintf(stderr, "CRL incorrectly reports an unrevoked serial\n");
         goto cleanup;
     }
+    if (X509_STORE_add_crl(store, crl) != 1 ||
+        X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK) != 1 ||
+        X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+        X509_verify_cert(ctx) == 1 ||
+        X509_STORE_CTX_get_error(ctx) != X509_V_ERR_CERT_REVOKED) {
+        fprintf(stderr, "X509_STORE CRL_CHECK did not reject revoked leaf (error=%d)\\n",
+                X509_STORE_CTX_get_error(ctx));
+        goto cleanup;
+    }
+
+    /* Reissue the same leaf identity with an unlisted serial and verify it. */
+    if (ASN1_INTEGER_set(X509_get_serialNumber(leaf), 102) != 1 ||
+        X509_sign(leaf, ca_key, EVP_sm3()) <= 0 ||
+        X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+        X509_verify_cert(ctx) != 1) {
+        fprintf(stderr, "X509_STORE CRL_CHECK rejected an unrevoked leaf (error=%d)\\n",
+                X509_STORE_CTX_get_error(ctx));
+        goto cleanup;
+    }
+    puts("X509_STORE CRL_CHECK revoked rejection and unrevoked acceptance: PASS");
+
     puts("CA-to-leaf chain and CRL revoked/unrevoked serial lookup: PASS");
     ok = 1;
 cleanup:

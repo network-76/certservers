@@ -211,6 +211,37 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
         goto cleanup;
     }
 
+    /* A leaf issued by this CA must not validate against an unrelated trust anchor. */
+    {
+        X509 *unrelated_ca = X509_new();
+        X509_STORE *unrelated_store = X509_STORE_new();
+        X509_STORE_CTX *unrelated_ctx = X509_STORE_CTX_new();
+        if (unrelated_ca == NULL || unrelated_store == NULL || unrelated_ctx == NULL ||
+            X509_set_version(unrelated_ca, 2) != 1 ||
+            ASN1_INTEGER_set(X509_get_serialNumber(unrelated_ca), 200) != 1 ||
+            X509_gmtime_adj(X509_getm_notBefore(unrelated_ca), 0) == NULL ||
+            X509_gmtime_adj(X509_getm_notAfter(unrelated_ca), 86400) == NULL ||
+            X509_set_pubkey(unrelated_ca, leaf_key) != 1 ||
+            X509_NAME_add_entry_by_txt(X509_get_subject_name(unrelated_ca), "CN",
+                MBSTRING_ASC, (const unsigned char *)"unrelated test CA", -1, -1, 0) != 1 ||
+            X509_set_issuer_name(unrelated_ca, X509_get_subject_name(unrelated_ca)) != 1 ||
+            X509_sign(unrelated_ca, leaf_key, EVP_sm3()) <= 0 ||
+            X509_STORE_add_cert(unrelated_store, unrelated_ca) != 1 ||
+            X509_STORE_CTX_init(unrelated_ctx, unrelated_store, leaf, NULL) != 1 ||
+            X509_verify_cert(unrelated_ctx) == 1) {
+            fprintf(stderr, "certificate chain unexpectedly validated against unrelated CA (error=%d)\\n",
+                    unrelated_ctx != NULL ? X509_STORE_CTX_get_error(unrelated_ctx) : -1);
+            X509_free(unrelated_ca);
+            X509_STORE_CTX_free(unrelated_ctx);
+            X509_STORE_free(unrelated_store);
+            goto cleanup;
+        }
+        X509_free(unrelated_ca);
+        X509_STORE_CTX_free(unrelated_ctx);
+        X509_STORE_free(unrelated_store);
+    }
+    puts("X.509 chain rejects unrelated trust anchor: PASS");
+
     if (X509_CRL_set_version(crl, 1) != 1 ||
         X509_CRL_set_issuer_name(crl, X509_get_subject_name(ca)) != 1 ||
         X509_CRL_set1_lastUpdate(crl, now) != 1 ||

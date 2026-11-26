@@ -350,6 +350,65 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     puts("X.509 chain enforces intermediate pathLenConstraint: PASS");
 
 
+    /* Intermediate validity is checked independently of the leaf validity. */
+    {
+        EVP_PKEY *intermediate_key = TSAPI_SM2Keygen();
+        X509 *intermediate = X509_new();
+        STACK_OF(X509) *untrusted = sk_X509_new_null();
+        X509_STORE_CTX *validity_ctx = X509_STORE_CTX_new();
+        X509_EXTENSION *validity_ext = NULL;
+        int future_rejected = 0, expired_rejected = 0;
+        if (intermediate_key == NULL || intermediate == NULL || untrusted == NULL ||
+            validity_ctx == NULL ||
+            X509_set_version(intermediate, 2) != 1 ||
+            ASN1_INTEGER_set(X509_get_serialNumber(intermediate), 205) != 1 ||
+            X509_gmtime_adj(X509_getm_notBefore(intermediate), 3600) == NULL ||
+            X509_gmtime_adj(X509_getm_notAfter(intermediate), 86400) == NULL ||
+            X509_set_pubkey(intermediate, intermediate_key) != 1 ||
+            (validity_ext = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints, "critical,CA:TRUE")) == NULL ||
+            X509_add_ext(intermediate, validity_ext, -1) != 1 ||
+            (X509_EXTENSION_free(validity_ext), validity_ext = NULL, 0) ||
+            X509_NAME_add_entry_by_txt(X509_get_subject_name(intermediate), "CN", MBSTRING_ASC,
+                (const unsigned char *)"validity test intermediate", -1, -1, 0) != 1 ||
+            X509_set_issuer_name(intermediate, X509_get_subject_name(ca)) != 1 ||
+            X509_sign(intermediate, ca_key, EVP_sm3()) <= 0 ||
+            X509_set_issuer_name(leaf, X509_get_subject_name(intermediate)) != 1 ||
+            X509_sign(leaf, intermediate_key, EVP_sm3()) <= 0 ||
+            sk_X509_push(untrusted, intermediate) == 0 ||
+            X509_STORE_CTX_init(validity_ctx, store, leaf, untrusted) != 1) {
+            fprintf(stderr, "failed to construct intermediate validity chain\n");
+            X509_EXTENSION_free(validity_ext); sk_X509_free(untrusted);
+            X509_STORE_CTX_free(validity_ctx); X509_free(intermediate);
+            EVP_PKEY_free(intermediate_key);
+            goto cleanup;
+        }
+        future_rejected = X509_verify_cert(validity_ctx) != 1 &&
+            X509_STORE_CTX_get_error(validity_ctx) == X509_V_ERR_CERT_NOT_YET_VALID;
+        if (X509_gmtime_adj(X509_getm_notBefore(intermediate), -3600) == NULL ||
+            X509_gmtime_adj(X509_getm_notAfter(intermediate), -3600) == NULL ||
+            X509_sign(intermediate, ca_key, EVP_sm3()) <= 0 ||
+            X509_STORE_CTX_init(validity_ctx, store, leaf, untrusted) != 1) {
+            fprintf(stderr, "failed to construct expired intermediate chain\n");
+            X509_EXTENSION_free(validity_ext); sk_X509_free(untrusted);
+            X509_STORE_CTX_free(validity_ctx); X509_free(intermediate);
+            EVP_PKEY_free(intermediate_key);
+            goto cleanup;
+        }
+        expired_rejected = X509_verify_cert(validity_ctx) != 1 &&
+            X509_STORE_CTX_get_error(validity_ctx) == X509_V_ERR_CERT_HAS_EXPIRED;
+        X509_EXTENSION_free(validity_ext); sk_X509_free(untrusted);
+        X509_STORE_CTX_free(validity_ctx); X509_free(intermediate);
+        EVP_PKEY_free(intermediate_key);
+        if (!future_rejected || !expired_rejected ||
+            X509_set_issuer_name(leaf, X509_get_subject_name(ca)) != 1 ||
+            X509_sign(leaf, ca_key, EVP_sm3()) <= 0) {
+            fprintf(stderr, "X.509 chain did not enforce intermediate validity (future=%d expired=%d)\n",
+                    future_rejected, expired_rejected);
+            goto cleanup;
+        }
+    }
+    puts("X.509 chain rejects not-yet-valid and expired intermediates: PASS");
+
     /* A matching signature alone is insufficient when the issuer name is wrong. */
     {
         X509_NAME *wrong_issuer = X509_NAME_new();

@@ -296,6 +296,27 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
         ASN1_TIME_free(future_next);
     }
     puts("X509_STORE CRL_CHECK future CRL rejection: PASS");
+    /* CRL_CHECK must fail closed when the store has no CRL. */
+    {
+        X509_STORE *empty_store = X509_STORE_new();
+        X509_STORE_CTX *empty_ctx = X509_STORE_CTX_new();
+        if (empty_store == NULL || empty_ctx == NULL ||
+            X509_STORE_add_cert(empty_store, ca) != 1 ||
+            X509_STORE_set_flags(empty_store, X509_V_FLAG_CRL_CHECK) != 1 ||
+            X509_STORE_CTX_init(empty_ctx, empty_store, leaf, NULL) != 1 ||
+            X509_verify_cert(empty_ctx) == 1 ||
+            X509_STORE_CTX_get_error(empty_ctx) != X509_V_ERR_UNABLE_TO_GET_CRL) {
+            fprintf(stderr, "X509_STORE CRL_CHECK did not fail without CRL (error=%d)\\n",
+                    empty_ctx != NULL ? X509_STORE_CTX_get_error(empty_ctx) : -1);
+            X509_STORE_CTX_free(empty_ctx);
+            X509_STORE_free(empty_store);
+            goto cleanup;
+        }
+        X509_STORE_CTX_free(empty_ctx);
+        X509_STORE_free(empty_store);
+    }
+    puts("X509_STORE CRL_CHECK missing CRL rejection: PASS");
+
 
 
 

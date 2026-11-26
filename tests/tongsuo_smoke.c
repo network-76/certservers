@@ -242,6 +242,40 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     puts("X.509 chain rejects unrelated trust anchor: PASS");
 
+    /* Reject a leaf certificate whose validity starts in the future. */
+    if (X509_gmtime_adj(X509_getm_notBefore(leaf), 3600) == NULL ||
+        X509_sign(leaf, ca_key, EVP_sm3()) <= 0 ||
+        X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+        X509_verify_cert(ctx) == 1 ||
+        X509_STORE_CTX_get_error(ctx) != X509_V_ERR_CERT_NOT_YET_VALID) {
+        fprintf(stderr, "X.509 chain did not reject not-yet-valid leaf (error=%d)\\n",
+                X509_STORE_CTX_get_error(ctx));
+        goto cleanup;
+    }
+    if (X509_gmtime_adj(X509_getm_notBefore(leaf), -3660) == NULL ||
+        X509_sign(leaf, ca_key, EVP_sm3()) <= 0) {
+        fprintf(stderr, "failed to restore leaf notBefore\\n");
+        goto cleanup;
+    }
+    puts("X.509 chain rejects not-yet-valid leaf: PASS");
+
+    /* Reject an expired leaf certificate. */
+    if (X509_gmtime_adj(X509_getm_notAfter(leaf), -3600) == NULL ||
+        X509_sign(leaf, ca_key, EVP_sm3()) <= 0 ||
+        X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+        X509_verify_cert(ctx) == 1 ||
+        X509_STORE_CTX_get_error(ctx) != X509_V_ERR_CERT_HAS_EXPIRED) {
+        fprintf(stderr, "X.509 chain did not reject expired leaf (error=%d)\\n",
+                X509_STORE_CTX_get_error(ctx));
+        goto cleanup;
+    }
+    if (X509_gmtime_adj(X509_getm_notAfter(leaf), 86400) == NULL ||
+        X509_sign(leaf, ca_key, EVP_sm3()) <= 0) {
+        fprintf(stderr, "failed to restore leaf notAfter\\n");
+        goto cleanup;
+    }
+    puts("X.509 chain rejects expired leaf: PASS");
+
     if (X509_CRL_set_version(crl, 1) != 1 ||
         X509_CRL_set_issuer_name(crl, X509_get_subject_name(ca)) != 1 ||
         X509_CRL_set1_lastUpdate(crl, now) != 1 ||

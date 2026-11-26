@@ -155,7 +155,7 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     X509_STORE_CTX *ctx = NULL;
     X509_CRL *crl = NULL;
     X509_REVOKED *revoked = NULL, *found = NULL;
-    ASN1_INTEGER *serial = NULL;
+    ASN1_INTEGER *serial = NULL, *unrevoked_serial = NULL;
     ASN1_TIME *now = NULL, *next = NULL;
     int ok = 0;
     X509_EXTENSION *ext = NULL;
@@ -167,10 +167,12 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     crl = X509_CRL_new();
     revoked = X509_REVOKED_new();
     serial = ASN1_INTEGER_new();
+    unrevoked_serial = ASN1_INTEGER_new();
     now = X509_gmtime_adj(NULL, 0);
     next = X509_gmtime_adj(NULL, 86400);
     if (ca == NULL || leaf == NULL || store == NULL || ctx == NULL ||
-        crl == NULL || revoked == NULL || serial == NULL || now == NULL ||
+        crl == NULL || revoked == NULL || serial == NULL ||
+        unrevoked_serial == NULL || now == NULL ||
         next == NULL ||
         X509_set_version(ca, 2) != 1 ||
         ASN1_INTEGER_set(X509_get_serialNumber(ca), 100) != 1 ||
@@ -230,7 +232,14 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
         fprintf(stderr, "CRL signature or revoked serial lookup failed\n");
         goto cleanup;
     }
-    puts("CA-to-leaf chain and verified CRL revoked serial lookup: PASS");
+    found = NULL;
+    if (ASN1_INTEGER_set(unrevoked_serial, 102) != 1 ||
+        X509_CRL_get0_by_serial(crl, &found, unrevoked_serial) != 0 ||
+        found != NULL) {
+        fprintf(stderr, "CRL incorrectly reports an unrevoked serial\n");
+        goto cleanup;
+    }
+    puts("CA-to-leaf chain and CRL revoked/unrevoked serial lookup: PASS");
     ok = 1;
 cleanup:
     X509_EXTENSION_free(ext);
@@ -241,6 +250,7 @@ cleanup:
     X509_CRL_free(crl);
     X509_REVOKED_free(revoked);
     ASN1_INTEGER_free(serial);
+    ASN1_INTEGER_free(unrevoked_serial);
     ASN1_TIME_free(now);
     ASN1_TIME_free(next);
     return ok;

@@ -275,6 +275,30 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     puts("X509_STORE CRL_CHECK expired CRL rejection: PASS");
 
+    /* A CRL whose lastUpdate is in the future must also be rejected. */
+    {
+        ASN1_TIME *future = X509_gmtime_adj(NULL, 3600);
+        ASN1_TIME *future_next = X509_gmtime_adj(NULL, 90000);
+        if (future == NULL || future_next == NULL ||
+            X509_CRL_set1_lastUpdate(crl, future) != 1 ||
+            X509_CRL_set1_nextUpdate(crl, future_next) != 1 ||
+            X509_CRL_sign(crl, ca_key, EVP_sm3()) <= 0 ||
+            X509_STORE_CTX_init(ctx, store, leaf, NULL) != 1 ||
+            X509_verify_cert(ctx) == 1 ||
+            X509_STORE_CTX_get_error(ctx) != X509_V_ERR_CRL_NOT_YET_VALID) {
+            fprintf(stderr, "X509_STORE CRL_CHECK did not reject future CRL (error=%d)\\n",
+                    X509_STORE_CTX_get_error(ctx));
+            ASN1_TIME_free(future);
+            ASN1_TIME_free(future_next);
+            goto cleanup;
+        }
+        ASN1_TIME_free(future);
+        ASN1_TIME_free(future_next);
+    }
+    puts("X509_STORE CRL_CHECK future CRL rejection: PASS");
+
+
+
     puts("X509_STORE CRL_CHECK revoked rejection and unrevoked acceptance: PASS");
 
     puts("CA-to-leaf chain and CRL revoked/unrevoked serial lookup: PASS");

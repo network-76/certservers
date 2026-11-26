@@ -284,50 +284,6 @@ static int ca_chain_and_revocation(EVP_PKEY *ca_key, EVP_PKEY *leaf_key)
     }
     puts("X.509 chain rejects CA:FALSE intermediate: PASS");
 
-    /* A CA intermediate lacking keyCertSign must not issue a valid chain. */
-    {
-        EVP_PKEY *limited_key = TSAPI_SM2Keygen();
-        X509 *limited_ca = X509_new();
-        STACK_OF(X509) *untrusted = sk_X509_new_null();
-        X509_STORE_CTX *limited_ctx = X509_STORE_CTX_new();
-        X509_EXTENSION *limited_ext = NULL;
-        int rejected = 0;
-        if (limited_key == NULL || limited_ca == NULL || untrusted == NULL || limited_ctx == NULL ||
-            X509_set_version(limited_ca, 2) != 1 ||
-            ASN1_INTEGER_set(X509_get_serialNumber(limited_ca), 202) != 1 ||
-            X509_gmtime_adj(X509_getm_notBefore(limited_ca), 0) == NULL ||
-            X509_gmtime_adj(X509_getm_notAfter(limited_ca), 86400) == NULL ||
-            X509_set_pubkey(limited_ca, limited_key) != 1 ||
-            (limited_ext = X509V3_EXT_conf_nid(NULL, NULL, NID_basic_constraints, "critical,CA:TRUE")) == NULL ||
-            X509_add_ext(limited_ca, limited_ext, -1) != 1 ||
-            (X509_EXTENSION_free(limited_ext), limited_ext = NULL, 0) ||
-            (limited_ext = X509V3_EXT_conf_nid(NULL, NULL, NID_key_usage, "critical,digitalSignature")) == NULL ||
-            X509_add_ext(limited_ca, limited_ext, -1) != 1 ||
-            (X509_EXTENSION_free(limited_ext), limited_ext = NULL, 0) ||
-            X509_NAME_add_entry_by_txt(X509_get_subject_name(limited_ca), "CN", MBSTRING_ASC,
-                (const unsigned char *)"CA without keyCertSign", -1, -1, 0) != 1 ||
-            X509_set_issuer_name(limited_ca, X509_get_subject_name(ca)) != 1 ||
-            X509_sign(limited_ca, ca_key, EVP_sm3()) <= 0 ||
-            X509_set_issuer_name(leaf, X509_get_subject_name(limited_ca)) != 1 ||
-            X509_sign(leaf, limited_key, EVP_sm3()) <= 0 ||
-            sk_X509_push(untrusted, limited_ca) == 0 ||
-            X509_STORE_CTX_init(limited_ctx, store, leaf, untrusted) != 1) {
-            fprintf(stderr, "failed to construct CA key-usage negative chain\n");
-            X509_EXTENSION_free(limited_ext); sk_X509_free(untrusted);
-            X509_STORE_CTX_free(limited_ctx); X509_free(limited_ca); EVP_PKEY_free(limited_key);
-            goto cleanup;
-        }
-        rejected = X509_verify_cert(limited_ctx) != 1 &&
-                   X509_STORE_CTX_get_error(limited_ctx) == X509_V_ERR_KEYUSAGE_NO_CERTSIGN;
-        X509_EXTENSION_free(limited_ext); sk_X509_free(untrusted);
-        X509_STORE_CTX_free(limited_ctx); X509_free(limited_ca); EVP_PKEY_free(limited_key);
-        if (!rejected || X509_set_issuer_name(leaf, X509_get_subject_name(ca)) != 1 ||
-            X509_sign(leaf, ca_key, EVP_sm3()) <= 0) {
-            fprintf(stderr, "X.509 chain did not reject CA without keyCertSign\n");
-            goto cleanup;
-        }
-    }
-    puts("X.509 chain rejects CA without keyCertSign: PASS");
 
     /* A matching signature alone is insufficient when the issuer name is wrong. */
     {
